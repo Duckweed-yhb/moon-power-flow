@@ -1,3 +1,7 @@
 import {
   "Duckweed/moon-power-flow/model" @model,
 }
+
+import {
+  "moonbitlang/core/test",
+} for "test"
