@@ -1,3 +1,7 @@
 import {
   "moonbitlang/core/math" @math,
 }
+
+import {
+  "moonbitlang/core/test",
+} for "test"

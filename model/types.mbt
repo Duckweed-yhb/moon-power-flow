@@ -97,7 +97,6 @@ pub struct Network {
 }
 
 /// 仅供本包 validate 在全部规则通过后调用，外部不直接构造未校验网络。
-#warnings("-unused_value")
 fn Network::make_raw(buses : Array[Bus], branches : Array[Branch]) -> Network {
   { buses: buses, branches: branches }
 }
