@@ -1,0 +1,10 @@
+// MoonBit 构建产物
+_build/
+target/
+
+// 本地拉取的第三方模块缓存
+.mooncakes/
+
+// 系统与编辑器杂物
+.DS_Store
+Thumbs.db
