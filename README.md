@@ -38,9 +38,10 @@ moon-power-flow/
 - 全部电量为标幺值（p.u.）；内置算例基准容量 `S_B = 100 MVA`，电压基准按统一标称值折算。
 - 阻抗 `z = r + jx`，导纳 `y = 1/z = (r - jx)/|z|^2`；注入功率约定 `S = P + jQ`，
   负荷以负净注入表示。
-- GS 收敛判据：一轮扫描内全部 PQ 节点「复电压新旧差值的模长」最大值小于阈值；
-  内置算例默认 `tol = 1e-8` p.u.，默认 `max_iter = 500`。
-- 测试容差：Ybus 元素对人手算结果采用绝对容差 `1e-9`；收敛后电压幅值对照独立参考解采用 `1e-6` p.u.。
+- GS 节点电流关系为 `I_i = conj(S_i) / conj(V_i)`；收敛判据为一轮扫描内全部 PQ 节点
+  「复电压新旧差值的模长」最大值小于阈值；内置算例默认 `tol = 1e-8` p.u.，默认 `max_iter = 500`。
+- 测试容差：Ybus 元素对人手算结果采用绝对容差 `1e-9`；收敛电压锚点采用 `1e-6` p.u.；
+  PQ 节点功率平衡残差 `|S_spec - V * conj((YV)_i)| < 1e-6` p.u.。
 - 浮点结果在不同后端可能有末位差异，断言一律走容差比较，不做字符串级相等判断。
 
 ## 已实现
@@ -54,7 +55,7 @@ moon-power-flow/
   - 支路串联导纳 `y = 1/z`。
   - Ybus 对角元为相连支路导纳之和，非对角元为对应支路导纳取负，矩阵对称。
 - `solver`
-  - GS 平坦启动（PQ 初值 `1.0 + j0`，Slack 取固定电压）。
+  - GS 平坦启动（PQ 初值 `1.0 + j0`，Slack 取固定电压），按 `I_i = conj(S_i) / conj(V_i)` 更新 PQ 电压。
   - 最大电压偏差阈值收敛；迭代次数达到 `max_iter` 仍未收敛返回结构化 `NotConverged`。
   - 收敛电压下支路两端复功率与串联损耗计算。
 - `cases`
@@ -64,18 +65,22 @@ moon-power-flow/
 
 ## 已验证（本机实测，2026-11-06）
 
-- `moon check --target native --deny-warn`：退出码 0。
-- `moon test --target native`：Total 15，passed 15，failed 0。
-- `moon check --target wasm-gc --deny-warn`：退出码 0。
-- `moon test --target wasm-gc`：Total 15，passed 15，failed 0。
-- `moon check --target js --deny-warn` 与 `moon test --target js` 本机亦为 15/15；
+- `moon check --target native --deny-warn`：退出码 0；`moon test --target native`：Total 16，passed 16，failed 0。
+- `moon check --target wasm-gc --deny-warn`：退出码 0；`moon test --target wasm-gc`：Total 16，passed 16，failed 0。
+- `moon check --target js --deny-warn` 与 `moon test --target js` 本机亦为 16/16；
   js 未写入 CI 配置，仅作本机可行性记录。
-- 内置算例 native 演示：GS 用 8 次扫描收敛；Slack 保持 `1.0∠0°`；
-  PQ 母线 2 约 `0.98852∠-0.6882°`，PQ 母线 3 约 `0.98238∠-1.0743°`（p.u.）。
+- 内置算例 native 演示（`moon run examples/demo --target native`）：GS 用 8 次扫描收敛；
+  Slack 保持 `1.0∠0°`；PQ 母线 2 约 `0.98819380∠-0.67042°`，
+  PQ 母线 3 约 `0.98174108∠-1.03959°`（p.u.）。
+- 支路潮流摘要（首端 P/Q 与损耗 P/Q，p.u.）：
+  - 1→2：P_from 0.232810，Q_from 0.120294；loss_P 0.00137342，loss_Q 0.00412026。
+  - 2→3：P_from 0.031436，Q_from 0.016174；loss_P 0.00010239，loss_Q 0.00030717。
+  - 1→3：P_from 0.119761，Q_from 0.062416；loss_P 0.00109430，loss_Q 0.00328290。
 - Ybus 期望值由独立手算给出（三条支路导纳与六个矩阵元素写死在 `ybus/ybus_test.mbt`），
   不由本库运行结果反向填充。
-- 收敛电压幅值另用一份独立 Python GS 脚本（纯标准库、不入库）交叉核对，
-  与本库输出在 `1e-6` 量级一致；脚本只作参考，不构成运行依赖。
+- 收敛结果另用独立教材式 GS 脚本（标准库实现 `I = conj(S) / conj(V)`，不入库、不构成依赖）交叉核对；
+  脚本同时复核 PQ 节点功率平衡残差 `|S_spec - V * conj((YV)_i)|`，
+  tol=1e-8 时 bus2 约 2.2e-8、bus3 约 8.6e-10，Slack 注入旁证约 `0.35257 + j0.18271` p.u.。
 
 ## 计划中（本轮未实现，不计入已交付）
 
