@@ -1,0 +1,3 @@
+import {
+  "Duckweed/moon-power-flow/model" @model,
+}
