@@ -1,3 +1,4 @@
 import {
   "Duckweed/moon-power-flow/model" @model,
+  "Duckweed/moon-power-flow/ybus" @ybus,
 }
