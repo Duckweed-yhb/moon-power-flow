@@ -2,3 +2,8 @@ import {
   "Duckweed/moon-power-flow/model" @model,
   "Duckweed/moon-power-flow/ybus" @ybus,
 }
+
+import {
+  "moonbitlang/core/test",
+  "Duckweed/moon-power-flow/cases" @cases,
+} for "test"
