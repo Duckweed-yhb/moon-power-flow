@@ -5,8 +5,8 @@
 //   - 网络已组装 Ybus（ybus.build_ybus）；
 //   - 全部数值为标幺值 p.u.。
 //
-// 迭代式（注入功率约定 S = P + jQ，负荷为负注入）：
-//   V_i^(k+1) = ( conj(S_i) / V_i^k - sum_{j != i} Y_ij V_j ) / Y_ii
+// 迭代式（注入功率约定 S = P + jQ，负荷为负注入；节点电流 I = conj(S) / conj(V)）：
+//   V_i^(k+1) = ( conj(S_i) / conj(V_i^k) - sum_{j != i} Y_ij V_j ) / Y_ii
 // 扫描顺序内 PQ 节点使用本轮已更新的最新电压，即 GS 的逐次替换特征。
 // 收敛判据：全部 PQ 节点本次与上次电压复向量最大模差小于 tol。
 // 达到 max_iter 仍未收敛返回结构化错误，不 panic。
@@ -67,7 +67,7 @@ pub fn gauss_seidel(
       if i != slack {
         let bus = net.bus_at(i)
         let vi_old = v[i]
-        // conj(S_i) = P_i - jQ_i
+        // conj(S_i) = P_i - jQ_i；电流为 I_i = conj(S_i) / conj(V_i^old)。
         let s_conj = @model.cx(bus.p_inj(), -bus.q_inj())
         let mut sum_ykv = @model.cx(0.0, 0.0)
         let mut j = 0
@@ -77,7 +77,7 @@ pub fn gauss_seidel(
           }
           j += 1
         }
-        let numer = @model.cx_sub(@model.cx_div(s_conj, vi_old), sum_ykv)
+        let numer = @model.cx_sub(@model.cx_div(s_conj, @model.cx_conj(vi_old)), sum_ykv)
         let vi_new = @model.cx_div(numer, ybus[i][i])
         let delta = @model.cx_abs(@model.cx_sub(vi_new, vi_old))
         if delta > max_delta {
