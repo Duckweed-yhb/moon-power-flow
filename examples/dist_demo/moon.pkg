@@ -1,0 +1,7 @@
+pkgtype(kind: "executable")
+supported_targets = "wasm+wasm-gc+js+native"
+
+import {
+  "Duckweed/moon-power-flow/dist" @dist,
+  "Duckweed/moon-power-flow/model" @model,
+}

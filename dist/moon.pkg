@@ -1,0 +1,10 @@
+///|
+/// dist — 三相不平衡配电网的前推回代潮流（纯计算，p.u.）
+///
+/// 与 `model/` 的单相平衡潮流并列：`model/` 面向输电级正序网络，本包面向
+/// 配电级辐射状三相网络。三相相量、3x3 阻抗矩阵都只用本包与 `@model.Cx`。
+supported_targets = "wasm+wasm-gc+js+native"
+
+import {
+  "Duckweed/moon-power-flow/model" @model,
+}
