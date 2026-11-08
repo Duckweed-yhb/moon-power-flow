@@ -17,6 +17,7 @@
 
 | 目的 | 命令 |
 |---|---|
+| 安装到其他 MoonBit 项目 | `moon add Duckweed/moon-power-flow@0.1.0` |
 | 静态检查（native，警告即错误） | `moon check --target native --deny-warn` |
 | 运行测试（native） | `moon test --target native` |
 | 静态检查（wasm-gc） | `moon check --target wasm-gc --deny-warn` |
@@ -84,6 +85,7 @@ moon-power-flow/
   （Python 独立实现前推回代）算出并写死在 `dist/fixtures_test.mbt`，
   不取自本库输出。
 - 单相侧：三节点算例 GS 8 次扫描收敛，Ybus 期望值由手算给出。
+- 发布：`Duckweed/moon-power-flow@0.1.0` 已于 2026-11-08 上线 mooncakes（Latest 0.1.0，MIT）；2026-11-08 本地复跑 native / wasm-gc / js 三后端 `moon test` 均 25/25，`--deny-warn` 严格检查通过。
 
 ## 计划中（本轮未实现，不计入已交付）
 
@@ -92,7 +94,7 @@ moon-power-flow/
 - 分布式电源（PV 型节点）与无功限值。
 - 牛顿-拉夫逊与连续潮流（电压崩溃裕度）。gridflow 已覆盖 NR，本项目优先做配电侧差异方向。
 - IEEE 123 / 34 节点等标准算例、稀疏存储、大规模网络。
-- js 后端 CI 接入、发布 mooncakes 包（本轮不发布）。
+- js 后端 CI 接入（当前 CI 仅 wasm-gc；本地 js 测试已实测通过，尚未接入 CI）。
 
 ## 输入校验与失败路径覆盖
 
