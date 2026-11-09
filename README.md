@@ -12,6 +12,8 @@
 > 不含环网、四线中性线、负荷静特性与 PV 节点。单相侧只做 1 Slack + 若干 PQ。
 > 计划项在「计划中」一节，不写成已实现。
 
+> 已发布：`Duckweed/moon-power-flow@0.1.1`（2026-11-09），`moon add Duckweed/moon-power-flow` 可安装。
+
 ## 快速开始
 
 本机工具链：moon 0.1.20261012（moonc v0.10.15）。下列命令在仓库根目录执行，
