@@ -1,0 +1,117 @@
+# moon-power-flow
+
+[中文](./README.md) · English
+
+A pure-MoonBit **three-phase unbalanced distribution-network backward/forward sweep power-flow kernel** for radial distribution systems: per-phase independent loads, branch 3x3 complex impedance matrices (retaining mutual phase impedances), and no balanced-three-phase assumption.
+
+A **single-phase balanced Gauss-Seidel (GS) solver** is kept in the same repository as a comparison baseline, to show what the balanced assumption misses under the same network parameters. The two lines are separate packages with separate tests.
+
+> Scope note: the three-phase release covers only "one slack (substation head) + radial tree topology"; it excludes meshed networks, four-wire neutral, load static characteristics, and PV nodes. The single-phase side models one Slack plus several PQ nodes. Planned items are listed under "Planned" and are not claimed as implemented.
+
+## Quick start
+
+Local toolchain: moon 0.1.20261012 (moonc v0.10.15). Run commands from the repository root and pass an explicit target, to avoid ambiguity when the default target lacks a prebuilt local artifact.
+
+| Purpose | Command |
+|---|---|
+| Add to another MoonBit project | `moon add Duckweed/moon-power-flow@0.1.0` |
+| Static check (native, warnings as errors) | `moon check --target native --deny-warn` |
+| Run tests (native) | `moon test --target native` |
+| Static check (wasm-gc) | `moon check --target wasm-gc --deny-warn` |
+| Run tests (wasm-gc) | `moon test --target wasm-gc` |
+| Three-phase distribution demo (native) | `moon run examples/dist_demo --target native` |
+| Single-phase balanced demo (native) | `moon run examples/demo --target native` |
+
+CI (`.github/workflows/ci.yml`) starts with wasm-gc check and test only; it does not claim coverage of every backend.
+
+## Package layout
+
+```text
+moon-power-flow/
+├── dist/       Three-phase unbalanced distribution: phasors, 3x3 impedance matrix, radial topology validation, backward/forward sweep
+├── model/      Single-phase balanced model: buses, branches, network; consistency validation and structured errors
+├── ybus/       Single-phase nodal complex admittance matrix Ybus assembly
+├── solver/     Single-phase GS iteration, convergence criterion, branch complex power flow and losses
+├── cases/      Built-in single-phase three-bus case and default convergence parameters
+├── examples/demo/        Single-phase GS demo
+└── examples/dist_demo/   Three-phase backward/forward sweep demo
+```
+
+## Units, base values, and tolerances
+
+- All quantities are per-unit (p.u.); the built-in case uses `S_B = 100 MVA`, and the three-phase side takes 230 V as the base phase voltage (at `S_base = 1.0`, 1.0 p.u. corresponds to 230 V phase voltage).
+- Impedance `z = r + jx`, admittance `y = 1/z`; injected power convention `S = P + jQ`.
+- Single-phase GS: loads are expressed as negative net injection; nodal current `I_i = conj(S_i) / conj(V_i)`; convergence requires the maximum modulus difference of complex voltages across all PQ nodes in one sweep to stay below threshold.
+- Three-phase sweep: loads are entered with "consumed positive"; backward current `I_load = conj(S_load / V)`, forward `V_to = V_from − Z · I_branch`; convergence criterion is the maximum modulus difference of non-root three-phase complex voltages.
+- Test tolerances: Ybus entries vs hand calculation `1e-9`; three-phase voltages vs an independent Python sweep `1e-9`; single-phase converged voltage anchors `1e-6`. Floating-point results differ in last digits across backends, so assertions always use tolerances.
+
+## Implemented
+
+### Three-phase unbalanced (`dist/`, main line)
+
+- `Phasor`: a/b/c three-phase complex phasor with per-phase add/subtract, conjugate, per-phase division, and maximum modulus.
+- `Z3`: symmetric 3x3 complex impedance matrix (three self impedances + three mutual impedances); matrix times phasor yields the three-phase voltage drop.
+- Radial validation (`build_topology`): unique ids, root exists, endpoints exist, edge count = node count − 1, root reaches every node; failures return structured `TopoErr` instead of panicking.
+- BFS topological order, parent edge, parent node, and child table; backward sweep uses reverse order and forward sweep uses source-to-leaf order.
+- Backward/forward sweep (`sweep`): flat start, three-phase coupled voltage drops, convergence criterion, iteration cap; non-convergence returns `SweepErr::NotConverged`.
+- Three built-in cases: four-node unbalanced, four-node balanced (three-phase degenerate check), two-node with mutual impedance.
+
+### Single-phase balanced (`model/` + `ybus/` + `solver/`, comparison)
+
+- Bus types Slack / PQ (PV only reserved as an enum value), network validation and structured `NetErr`.
+- Ybus assembly: diagonal entries are the sum of connected branch admittances; off-diagonal entries are negated.
+- GS iteration, convergence criterion, iteration cap, branch complex power and losses.
+- One three-bus case and a GS demo.
+
+## Verified (local run, 2026-11-07)
+
+- `moon test --target native` / `wasm-gc` / `js`: **25/25**, consistent across the three backends.
+- `moon check --target native --deny-warn` and `--target js --deny-warn`: 0 warnings.
+- Three-phase demo (`moon run examples/dist_demo --target native`; js also run): the four-node unbalanced case converges in 4 sweeps, `max |dV| ≈ 4.6e-10`; bus 2 three-phase voltages are about `0.9974 pu @ -0.16°`, `0.9991 pu @ -120.05°`, `0.9985 pu @ 119.91°` — the three phases no longer match, exactly what a balanced assumption would erase.
+- Independent baseline: the 24 voltage components of the four-node case are computed by `scripts/gen_dist_fixtures.py` (an independent Python backward/forward sweep) and hard-coded in `dist/fixtures_test.mbt`; they are not taken from this library's output.
+- Single-phase side: the three-bus GS case converges in 8 sweeps; expected Ybus values are hand-calculated.
+- Published: `Duckweed/moon-power-flow@0.1.0` reached mooncakes on 2026-11-08 (Latest 0.1.0, MIT); a local re-run on 2026-11-08 reports 25/25 on native / wasm-gc / js with strict `--deny-warn` checks passing.
+
+## Planned (not implemented this round, not counted as delivered)
+
+- Four-wire neutral, three-phase four-wire load model, and neutral-point displacement.
+- Meshed / weakly meshed networks and multi-root (multi-source) distribution systems.
+- Distributed generation (PV-type nodes) and reactive power limits.
+- Newton-Raphson and continuation power flow (voltage collapse margin). The GitHub reference `Zcxssxx/gridflow` (not published to mooncakes) covers balanced positive-sequence NR; this project prioritizes the unbalanced distribution gap.
+- IEEE 123 / 34 node standard cases, sparse storage, and large-scale networks.
+- CI for the js backend (current CI wasm-gc only; local js tests pass but are not yet wired into CI).
+
+## Validation and failure-path coverage
+
+| Failure case | Returned value | Covered by |
+|---|---|---|
+| Single-phase: missing Slack | `Err(NoSlack)` | `model/validate_test.mbt` |
+| Single-phase: more than one Slack | `Err(MultipleSlack(n))` | `model/validate_test.mbt` |
+| Single-phase: duplicate bus id | `Err(DuplicateId(id))` | `model/validate_test.mbt` |
+| Single-phase: unknown branch endpoint | `Err(UnknownEndpoint(k, id))` | `model/validate_test.mbt` |
+| Single-phase: zero branch impedance | `Err(ZeroImpedance(k))` | `model/validate_test.mbt` |
+| Single-phase: GS non-convergence | `Err(NotConverged(iter, dV))` | `solver/solver_test.mbt` |
+| Three-phase: root missing | `Err(RootNotFound)` | `dist/dist_test.mbt` |
+| Three-phase: duplicate node id | `Err(DuplicateNodeId(id))` | `dist/dist_test.mbt` |
+| Three-phase: meshed (edges ≠ n−1) | `Err(NotRadial)` | `dist/dist_test.mbt` |
+| Three-phase: disconnected graph | `Err(Disconnected(id))` | `dist/dist_test.mbt` |
+| Three-phase: sweep non-convergence | `Err(NotConverged(iter, dV))` | `dist/dist_test.mbt` |
+
+## Known limits and scope
+
+- The three-phase side applies only to radial tree networks; meshed and weakly meshed networks need separate handling and are currently rejected.
+- Only three-phase three-wire, constant-power loads are modeled; there is no neutral, so neutral-point displacement from single-phase ground faults is out of scope.
+- No sparse storage; dense matrices are used as node count grows, so this is not aimed at large-scale systems.
+- The single-phase side targets small networks with mild parameters; high R/X ratios or near-singular cases may fail to converge and return a structured error.
+- The complex-number type is a lightweight record defined in this library, covering only the operations needed by the solver; it does not aim for a complete general math library.
+
+## Duplicate-check status (measured 2026-11-09)
+
+- `moon search loadflow`: no module found.
+- `moon search power`: hits `SupremeHuaji/MoonElec@0.1.0`, an electrical-engineering formula library (circuits, three-phase power, transformers, motors, signal and control). It is a formula collection with no network topology, Ybus assembly, or iterative power-flow solving, and does not overlap this library.
+- Public GitHub repository `Zcxssxx/gridflow` (https://github.com/Zcxssxx/gridflow , Apache-2.0): a MoonBit balanced positive-sequence AC power-flow library using polar-coordinate Newton-Raphson, PQ/PV/slack, a MATPOWER case subset, and PGLib-OPF 14/30/118 bus validation; it has not been published to mooncakes.io (`moon view Zcxssxx/gridflow` returns 404 and `moon search gridflow` has no hit). It targets the **balanced positive-sequence** direction, distinct from this library's three-phase unbalanced main line.
+- Difference: this library's main line is **three-phase unbalanced distribution** (per-phase independent loads, 3x3 mutual-coupled impedance, radial backward/forward sweep); gridflow explicitly excludes unbalanced distribution models. The single-phase GS part serves only as a comparison baseline, not the main selling point.
+
+## License
+
+MIT; see `LICENSE`.

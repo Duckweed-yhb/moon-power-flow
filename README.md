@@ -1,5 +1,7 @@
 # moon-power-flow
 
+[English](./README.en.md)
+
 纯 MoonBit 写的**三相不平衡配电网前推回代**潮流内核，面向配电级辐射状网络：
 每相独立负荷、支路用 3x3 复阻抗矩阵（保留相间互阻抗），不假设三相平衡。
 
@@ -92,7 +94,7 @@ moon-power-flow/
 - 四线制中性线、三相四线负荷模型与中性点位移。
 - 环网 / 弱环网处理、多根（多电源）配电网。
 - 分布式电源（PV 型节点）与无功限值。
-- 牛顿-拉夫逊与连续潮流（电压崩溃裕度）。gridflow 已覆盖 NR，本项目优先做配电侧差异方向。
+- 牛顿-拉夫逊与连续潮流（电压崩溃裕度）。GitHub 参考实现 `Zcxssxx/gridflow`（未发布 mooncakes）覆盖平衡正序 NR，本项目优先做配电侧不平衡差异方向。
 - IEEE 123 / 34 节点等标准算例、稀疏存储、大规模网络。
 - js 后端 CI 接入（当前 CI 仅 wasm-gc；本地 js 测试已实测通过，尚未接入 CI）。
 
@@ -120,11 +122,11 @@ moon-power-flow/
 - 单相侧只适用于参数温和的小网络；高阻比或接近病态时可能不收敛，返回结构化失败。
 - 复数类型为本库自建的轻量记录，只覆盖求解所需运算，不追求通用数学库完整度。
 
-## 查重状态（2026-11-07 实测）
+## 查重状态（2026-11-09 实测）
 
 - `moon search loadflow`：无模块。
 - `moon search power`：命中 `SupremeHuaji/MoonElec@0.1.0`，电气工程公式库（电路、三相功率、变压器、电机、信号与控制）。它是公式计算集合，不含网络拓扑、Ybus 组装或迭代潮流求解，与本库不重合。
-- GitHub / mooncakes 上存在 `Zcxssxx/gridflow`：MoonBit 写的平衡正序 AC 潮流库，极坐标牛顿-拉夫逊，PQ/PV/slack，MATPOWER case 文件子集，PGLib-OPF 14/30/118 母线验证，Apache-2.0，10-30 建仓并已发布。这是**平衡正序**方向的正面重叠。
+- GitHub 公开仓库 `Zcxssxx/gridflow`（https://github.com/Zcxssxx/gridflow ，Apache-2.0）：MoonBit 写的平衡正序 AC 潮流库，极坐标牛顿-拉夫逊，PQ/PV/slack，MATPOWER case 文件子集，PGLib-OPF 14/30/118 母线验证；该仓库尚未发布到 mooncakes.io（`moon view Zcxssxx/gridflow` 返回 404，`moon search gridflow` 无命中）。它对应**平衡正序**方向，与本库三相不平衡主线不同。
 - 差异：本库主线是**三相不平衡配电**（每相独立负荷、3x3 相间耦合阻抗、辐射状前推回代），gridflow 明确不覆盖 unbalanced distribution models；单相 GS 部分只作对照基线，不作为主卖点。
 
 ## 许可证
