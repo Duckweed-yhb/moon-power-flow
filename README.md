@@ -79,7 +79,7 @@ moon-power-flow/
 
 ## 已验证（本机实测，2026-11-07）
 
-- `moon test --target native` / `wasm-gc` / `js`：**27/27**，三后端一致。
+- `moon test --target native` / `wasm-gc` / `js`：**28/28**，三后端一致。
 - `moon check --target native --deny-warn`、`--target js --deny-warn`：0 警告。
 - 三相示例（`moon run examples/dist_demo --target native`，也跑过 js）：
   四节点不平衡算例 4 次扫描收敛，`max |dV| ≈ 4.6e-10`；
@@ -89,7 +89,7 @@ moon-power-flow/
   （Python 独立实现前推回代）算出并写死在 `dist/fixtures_test.mbt`，
   不取自本库输出。
 - 单相侧：三节点算例 GS 8 次扫描收敛，Ybus 期望值由手算给出。
-- 发布：`Duckweed/moon-power-flow@0.1.2` 已于 2026-11-09 上线 mooncakes（Latest 0.1.2，MIT）；本地复跑 native / wasm-gc / js 三后端 `moon test` 均 27/27，`--deny-warn` 严格检查通过。
+- 发布：`Duckweed/moon-power-flow@0.1.2` 已于 2026-11-09 上线 mooncakes（Latest 0.1.2，MIT）；本地复跑 native / wasm-gc / js 三后端 `moon test` 均 28/28，`--deny-warn` 严格检查通过。
 
 ## 计划中（本轮未实现，不计入已交付）
 

@@ -79,3 +79,20 @@ pub fn case_coupled() -> DistNet {
   let edges = [DistEdge::make(1, 2, z)]
   DistNet::make(nodes, edges, 1, Phasor::balanced(1.0, 0.0))
 }
+
+///|
+/// 编号乱序的算例：根是 10，中间节点 7，末端 3，节点表顺序也不是拓扑序。
+/// 用来验证拓扑与求解按 BFS 走，而不是依赖编号或数组顺序。
+pub fn case_scrambled_ids() -> DistNet {
+  let z = @model.cx(0.01, 0.02)
+  let nodes = [
+    DistNode::make(10, Phasor::zero()),
+    DistNode::make(3, Phasor::uniform(@model.cx(0.05, 0.01))),
+    DistNode::make(7, Phasor::uniform(@model.cx(0.03, 0.01))),
+  ]
+  let edges = [
+    DistEdge::make(10, 7, z3_diag(z, z, z)),
+    DistEdge::make(7, 3, z3_diag(z, z, z)),
+  ]
+  DistNet::make(nodes, edges, 10, Phasor::balanced(1.0, 0.0))
+}

@@ -219,3 +219,30 @@ test "sweep: absurd load hits iteration limit instead of hanging" {
     Err(e) => fail("expected NotConverged, got " + e.describe())
   }
 }
+
+///|
+test "sweep: scrambled ids and non-first root are handled by BFS" {
+  let net = @dist.case_scrambled_ids()
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  // 根是编号 10，但内部下标是 0；3 和 7 的数组顺序也不是拓扑序。
+  assert_eq(topo.order()[0], 0)
+  assert_eq(topo.parent()[0], -1)
+  // 内部下标：10→0、3→1、7→2；7 的父是 10，3 的父是 7
+  assert_eq(topo.parent()[2], 0)
+  assert_eq(topo.parent()[1], 2)
+  match @dist.sweep(net, topo, 0.000000001, 100) {
+    Ok(r) => {
+      let v = r.voltages()
+      let v_root = @model.cx_abs(v[0].a())
+      let v_mid = @model.cx_abs(v[2].a())
+      let v_leaf = @model.cx_abs(v[1].a())
+      assert_true(approx_equal(v_root, 1.0, 0.000000001))
+      assert_true(v_mid < v_root)
+      assert_true(v_leaf < v_mid)
+    }
+    Err(e) => fail(e.describe())
+  }
+}
