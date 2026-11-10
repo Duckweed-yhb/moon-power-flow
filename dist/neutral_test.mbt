@@ -154,3 +154,94 @@ test "neutral voltages reject mismatched topology" {
   let vpn = @dist.phase_to_neutral(r_big, vn)
   assert_eq(vpn.length(), 0)
 }
+
+///|
+/// 逐支路中性阻抗：全相同时必须与统一版本逐位一致。
+test "per edge neutral impedance matches the uniform version" {
+  let net = @dist.case_four_node()
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  let r = match @dist.sweep(net, topo, 1.0e-12, 100) {
+    Ok(x) => x
+    Err(e) => fail(e.describe())
+  }
+  let zn = @model.cx(0.015, 0.008)
+  let uniform = @dist.neutral_voltages(net, topo, r, zn)
+  let per_edge : Array[@model.Cx] = []
+  for _ in 0..<net.edge_count() {
+    per_edge.push(zn)
+  }
+  let from_edges = @dist.neutral_voltages_per_edge(net, topo, r, per_edge)
+  assert_eq(uniform.length(), from_edges.length())
+  let mut i = 0
+  while i < uniform.length() {
+    assert_true(@model.cx_sub(uniform[i], from_edges[i]).re.abs() < 1.0e-15)
+    assert_true(@model.cx_sub(uniform[i], from_edges[i]).im.abs() < 1.0e-15)
+    i += 1
+  }
+}
+
+///|
+/// 两段阻抗不同时，末端中性点电压等于逐段压降之和（定义式）。
+test "per edge drops accumulate along the path" {
+  let z = @model.cx(0.01, 0.02)
+  let z3 = @dist.z3_diag(z, z, z)
+  let zero = @dist.Phasor::zero()
+  let load = @dist.phasor(
+    @model.cx(0.1, 0.03),
+    @model.cx(0.08, 0.02),
+    @model.cx(0.12, 0.04),
+  )
+  let net = @dist.DistNet::make(
+    [
+      @dist.DistNode::make(1, zero),
+      @dist.DistNode::make(2, load),
+      @dist.DistNode::make(3, load),
+    ],
+    [@dist.DistEdge::make(1, 2, z3), @dist.DistEdge::make(2, 3, z3)],
+    1,
+    @dist.Phasor::uniform(@model.cx(1.0, 0.0)),
+  )
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  let r = match @dist.sweep(net, topo, 1.0e-12, 100) {
+    Ok(x) => x
+    Err(e) => fail(e.describe())
+  }
+  let z1 = @model.cx(0.01, 0.005)
+  let z2 = @model.cx(0.02, 0.010)
+  let vn = @dist.neutral_voltages_per_edge(net, topo, r, [z1, z2])
+  // 逐段中性电流：I_n = −(Ia+Ib+Ic)
+  let cur = r.branch_currents()
+  let i_n1 = @model.cx_neg(
+    @model.cx_add(@model.cx_add(cur[0].a(), cur[0].b()), cur[0].c()),
+  )
+  let i_n2 = @model.cx_neg(
+    @model.cx_add(@model.cx_add(cur[1].a(), cur[1].b()), cur[1].c()),
+  )
+  let expected = @model.cx_neg(
+    @model.cx_add(@model.cx_mul(z1, i_n1), @model.cx_mul(z2, i_n2)),
+  )
+  assert_true(@model.cx_sub(vn[2], expected).re.abs() < 1.0e-15)
+  assert_true(@model.cx_sub(vn[2], expected).im.abs() < 1.0e-15)
+}
+
+///|
+/// 长度对不上：返回空数组，不越界也不假装不漂。
+test "per edge neutral impedance rejects mismatched length" {
+  let net = @dist.case_four_node()
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  let r = match @dist.sweep(net, topo, 1.0e-12, 100) {
+    Ok(x) => x
+    Err(e) => fail(e.describe())
+  }
+  let too_few : Array[@model.Cx] = [@model.cx(0.01, 0.0)]
+  assert_eq(@dist.neutral_voltages_per_edge(net, topo, r, too_few).length(), 0)
+}

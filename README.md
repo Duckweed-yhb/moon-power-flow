@@ -74,7 +74,7 @@ moon-power-flow/
   inf/NaN——浮点残差会把比值放大到 1e17 量级，那个数字没有工程意义。示例 `dist_demo`
   每条母线都会打印 VUF。
 - 负荷静特性 ZIP（`dist/zip.mbt`）：`S(V) = S0·(α + β·|V| + γ·|V|²)`，逐相按各自电压模长缩放；`Zip::new` 校验三者非负且和为 1，`sweep_zip` 与 `sweep` 并存（α=1 时同解）。配 `load_demand_active_zip` 统计按最终电压缩放后的实际取用，功率平衡恒等式照旧成立。
-- 中性点位移（`dist/neutral.mbt`，四线制一阶近似）：中性导体与相导体同拓扑，支路中性电流取三相电流之和的相反数，逐支路中性阻抗由调用方给定。`neutral_voltages` 给逐节点中性点电压，`phase_to_neutral` 给负荷端「相对中性点」的相电压。示例里四节点算例的中性点漂移约 `0.0017–0.0026 p.u.`，a 相相对中性点压到 `0.994–0.996 p.u.`、b 相被抬到 `1.0006–1.0014 p.u.` —— 这是三相不平衡配电网里最容易被忽略的一段。
+- 中性点位移（`dist/neutral.mbt`，四线制一阶近似）：中性导体与相导体同拓扑，支路中性电流取三相电流之和的相反数。`neutral_voltages` 接受统一中性阻抗，`neutral_voltages_per_edge` 接受逐支路阻抗数组（真机上各段导线截面不同）；`phase_to_neutral` 给负荷端「相对中性点」的相电压。示例里四节点算例的中性点漂移约 `0.0017–0.0026 p.u.`，a 相相对中性点压到 `0.994–0.996 p.u.`、b 相被抬到 `1.0006–1.0014 p.u.` —— 这是三相不平衡配电网里最容易被忽略的一段。
 - 支路损耗与功率平衡（`dist/loss.mbt`）：逐相 `S_p = (Z3·I)_p · conj(I_p)`，相间互阻抗
   已包含在 `(Z3·I)` 里；`branch_losses` 给每条支路三相损耗，`total_loss_active` 给全网有功
   损耗，`load_demand_active` / `root_injection_active` 供功率平衡校验。验收判据不是参考数据，
@@ -90,7 +90,7 @@ moon-power-flow/
 
 ## 已验证（本机实测，2026-11-10 复跑）
 
-- `moon test --target native` / `--target wasm-gc`：**65/65**，两后端一致。
+- `moon test --target native` / `--target wasm-gc`：**68/68**，两后端一致。
   `js` 后端的测试本机跑不了（PATH 里没有可用的 node），交给 CI 验证；
   `moon check --deny-warn --target js` 与 `moon build --target js` 本机干净通过。
 - `moon check --target native --deny-warn`、`--target js --deny-warn`：0 警告。
@@ -105,7 +105,7 @@ moon-power-flow/
   （Python 独立实现前推回代）算出并写死在 `dist/fixtures_test.mbt`，
   不取自本库输出。
 - 单相侧：三节点算例 GS 8 次扫描收敛，Ybus 期望值由手算给出。
-- 发布：`Duckweed/moon-power-flow@0.1.12` 已于 2026-11-10 上线 mooncakes（Latest 0.1.12，MIT）；本地 2026-11-10 复跑 native / wasm-gc 两后端 `moon test` 均 65/65，三个目标的 `--deny-warn` 严格检查通过。
+- 发布：`Duckweed/moon-power-flow@0.1.12` 已于 2026-11-10 上线 mooncakes（Latest 0.1.12，MIT）；本地 2026-11-10 复跑 native / wasm-gc 两后端 `moon test` 均 68/68，三个目标的 `--deny-warn` 严格检查通过。
 
 ## 计划中（本轮未实现，不计入已交付）
 

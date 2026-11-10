@@ -28,14 +28,33 @@ pub fn neutral_voltages(
   r : SweepOk,
   z_neutral : @model.Cx,
 ) -> Array[@model.Cx] {
+  let uniform : Array[@model.Cx] = []
+  for _ in 0..<net.edge_count() {
+    uniform.push(z_neutral)
+  }
+  neutral_voltages_per_edge(net, topo, r, uniform)
+}
+
+///|
+/// 逐支路给定中性导体阻抗的版本（真机上各段导线截面不同）。
+///
+/// `z_edges` 长度必须等于 `net.edge_count()`，否则返回空数组——同样是
+/// 「数据无效」而不是「不漂」。其余语义与 `neutral_voltages` 完全一致。
+pub fn neutral_voltages_per_edge(
+  net : DistNet,
+  topo : Topology,
+  r : SweepOk,
+  z_edges : Array[@model.Cx],
+) -> Array[@model.Cx] {
   let n = net.node_count()
   let zero = @model.cx(0.0, 0.0)
   let out : Array[@model.Cx] = []
-  // 拓扑与电流必须来自同一张网：长度对不上就返回空，不越界 panic，
+  // 拓扑、电流、阻抗三者必须来自同一张网：对不上就返回空，不越界 panic，
   // 也不假装「中性点不漂」。
   if topo.parent().length() != n ||
     topo.parent_edge().length() != n ||
-    r.branch_currents().length() != net.edge_count() {
+    r.branch_currents().length() != net.edge_count() ||
+    z_edges.length() != net.edge_count() {
     return out
   }
   for _ in 0..<n {
@@ -60,7 +79,7 @@ pub fn neutral_voltages(
       let i = currents[pe]
       // 中性电流 = 该支路三相电流之和取反。
       let i_n = @model.cx_neg(@model.cx_add(@model.cx_add(i.a(), i.b()), i.c()))
-      let drop = @model.cx_mul(z_neutral, i_n)
+      let drop = @model.cx_mul(z_edges[pe], i_n)
       out[u] = @model.cx_sub(out[pu], drop)
     }
   }
