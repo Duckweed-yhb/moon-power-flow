@@ -107,7 +107,7 @@ pub fn sweep(
 pub fn sweep_zip(
   net : DistNet,
   topo : Topology,
-  zip : Zip,
+  zip : @model.Zip,
   tol : Double,
   max_iter : Int32,
 ) -> Result[SweepOk, SweepErr] {
@@ -119,7 +119,7 @@ pub fn sweep_zip(
 fn sweep_with_zip(
   net : DistNet,
   topo : Topology,
-  zip : Zip?,
+  zip : @model.Zip?,
   tol : Double,
   max_iter : Int32,
 ) -> Result[SweepOk, SweepErr] {

@@ -64,6 +64,33 @@ pub fn gauss_seidel(
   tol : Double,
   max_iter : Int32,
 ) -> Result[SolveOk, SolveErr] {
+  gauss_seidel_with_zip(net, ybus, None, tol, max_iter)
+}
+
+///|
+/// 带 ZIP 负荷静特性的 GS 求解：每轮按节点当前电压模长缩放净注入。
+///
+/// 语义与三相侧一致：`S(V) = S0·(α + β|V| + γ|V|²)`。α=1 时与 `gauss_seidel`
+/// 完全同解。单相侧只做 1 Slack + 若干 PQ，缩放对象是节点净注入（负荷为负）。
+pub fn gauss_seidel_zip(
+  net : @model.Network,
+  ybus : Array[Array[@model.Cx]],
+  zip : @model.Zip,
+  tol : Double,
+  max_iter : Int32,
+) -> Result[SolveOk, SolveErr] {
+  gauss_seidel_with_zip(net, ybus, Some(zip), tol, max_iter)
+}
+
+///|
+/// 求解主体：`zip` 为 None 表示恒功率注入（旧行为）。
+fn gauss_seidel_with_zip(
+  net : @model.Network,
+  ybus : Array[Array[@model.Cx]],
+  zip : @model.Zip?,
+  tol : Double,
+  max_iter : Int32,
+) -> Result[SolveOk, SolveErr] {
   let n = net.bus_count()
   if max_iter <= 0 {
     return Err(InvalidConfig)
@@ -91,7 +118,12 @@ pub fn gauss_seidel(
         let bus = net.bus_at(i)
         let vi_old = v[i]
         // conj(S_i) = P_i - jQ_i；电流为 I_i = conj(S_i) / conj(V_i^old)。
-        let s_conj = @model.cx(bus.p_inj(), -bus.q_inj())
+        // ZIP：按节点当前电压模长缩放净注入
+        let f = match zip {
+          None => 1.0
+          Some(z) => z.scale_at(@model.cx_abs(vi_old))
+        }
+        let s_conj = @model.cx(bus.p_inj() * f, -bus.q_inj() * f)
         let mut sum_ykv = @model.cx(0.0, 0.0)
         let mut j = 0
         while j < n {

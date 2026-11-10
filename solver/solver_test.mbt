@@ -160,3 +160,81 @@ test "GS rejects non positive iteration limit" {
       }
   }
 }
+
+///|
+/// 单相侧 ZIP：α=1 时必须与旧求解逐位一致。
+test "single phase ZIP with constant power matches plain GS" {
+  let net = match @cases.case_three_bus() {
+    Ok(n) => n
+    Err(e) => @test.fail("case should validate: " + e.describe())
+  }
+  let y = @ybus.build_ybus(net)
+  let plain = match
+    @solver.gauss_seidel(
+      net,
+      y,
+      @cases.default_tol(),
+      @cases.default_max_iter(),
+    ) {
+    Ok(o) => o
+    Err(e) => @test.fail("plain GS failed: " + e.describe())
+  }
+  let zip = @model.Zip::constant_power()
+  let with_zip = match
+    @solver.gauss_seidel_zip(
+      net,
+      y,
+      zip,
+      @cases.default_tol(),
+      @cases.default_max_iter(),
+    ) {
+    Ok(o) => o
+    Err(e) => @test.fail("ZIP GS failed: " + e.describe())
+  }
+  let a = plain.voltages()
+  let b = with_zip.voltages()
+  assert_eq(a.length(), b.length())
+  let mut i = 0
+  while i < a.length() {
+    assert_true(@model.cx_abs(@model.cx_sub(a[i], b[i])) < 1.0e-15)
+    i += 1
+  }
+}
+
+///|
+/// 单相侧 ZIP：恒阻抗负荷在电压低于 1 p.u. 时取用更少，收敛解的电压会比
+/// 恒功率情形更高（负荷轻了）。
+test "single phase constant impedance load raises the solved voltage" {
+  let net = match @cases.case_three_bus() {
+    Ok(n) => n
+    Err(e) => @test.fail("case should validate: " + e.describe())
+  }
+  let y = @ybus.build_ybus(net)
+  let plain = match
+    @solver.gauss_seidel(
+      net,
+      y,
+      @cases.default_tol(),
+      @cases.default_max_iter(),
+    ) {
+    Ok(o) => o
+    Err(e) => @test.fail("plain GS failed: " + e.describe())
+  }
+  let zi = @model.Zip::constant_impedance()
+  let light = match
+    @solver.gauss_seidel_zip(
+      net,
+      y,
+      zi,
+      @cases.default_tol(),
+      @cases.default_max_iter(),
+    ) {
+    Ok(o) => o
+    Err(e) => @test.fail("ZIP GS failed: " + e.describe())
+  }
+  let a = plain.voltages()
+  let b = light.voltages()
+  // 两个 PQ 母线（下标 1、2）在恒阻抗下电压更高
+  assert_true(@model.cx_abs(b[1]) > @model.cx_abs(a[1]))
+  assert_true(@model.cx_abs(b[2]) > @model.cx_abs(a[2]))
+}

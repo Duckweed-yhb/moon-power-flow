@@ -23,7 +23,7 @@ test "constant power ZIP matches the plain sweep" {
     Ok(r) => r
     Err(e) => fail(e.describe())
   }
-  let zip = @dist.Zip::constant_power()
+  let zip = @model.Zip::constant_power()
   let zr = match @dist.sweep_zip(net, topo, zip, 1.0e-12, 100) {
     Ok(r) => r
     Err(e) => fail(e.describe())
@@ -44,7 +44,7 @@ test "constant impedance ZIP keeps the power balance" {
     Ok(t) => t
     Err(e) => fail(e.describe())
   }
-  let zip = @dist.Zip::constant_impedance()
+  let zip = @model.Zip::constant_impedance()
   let r = match @dist.sweep_zip(net, topo, zip, 1.0e-12, 100) {
     Ok(x) => x
     Err(e) => fail(e.describe())
@@ -66,7 +66,7 @@ test "mixed ZIP converges and balances" {
     Ok(t) => t
     Err(e) => fail(e.describe())
   }
-  let zip = match @dist.Zip::new(0.5, 0.3, 0.2) {
+  let zip = match @model.Zip::new(0.5, 0.3, 0.2) {
     Ok(z) => z
     Err(e) => fail(e)
   }
@@ -83,17 +83,17 @@ test "mixed ZIP converges and balances" {
 ///|
 test "invalid ZIP coefficients are rejected" {
   // 和不为 1
-  match @dist.Zip::new(0.5, 0.6, 0.0) {
+  match @model.Zip::new(0.5, 0.6, 0.0) {
     Ok(_) => fail("sum != 1 should be rejected")
     Err(e) => assert_true(e.contains("sum to 1"))
   }
   // 负数
-  match @dist.Zip::new(1.2, -0.1, -0.1) {
+  match @model.Zip::new(1.2, -0.1, -0.1) {
     Ok(_) => fail("negative coefficient should be rejected")
     Err(e) => assert_true(e.contains("non-negative"))
   }
   // 合法值
-  match @dist.Zip::new(1.0, 0.0, 0.0) {
+  match @model.Zip::new(1.0, 0.0, 0.0) {
     Ok(z) => assert_true(z.alpha() == 1.0)
     Err(e) => fail(e)
   }
@@ -102,7 +102,7 @@ test "invalid ZIP coefficients are rejected" {
 ///|
 test "scale factor reflects the voltage dependence" {
   // |V| = 1 时三种负荷的缩放系数都是 1
-  let mixed = match @dist.Zip::new(0.5, 0.3, 0.2) {
+  let mixed = match @model.Zip::new(0.5, 0.3, 0.2) {
     Ok(z) => z
     Err(e) => fail(e)
   }
