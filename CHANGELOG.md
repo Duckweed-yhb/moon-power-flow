@@ -2,6 +2,16 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.1.3] - 2026-11-10
+
+### Added
+
+- `dist/case_scrambled_ids`：编号乱序、根不在首位的算例，验证拓扑与求解按 BFS 走而不是依赖数组顺序；测试数 27 → 28。
+
+### Changed
+
+- `moon fmt` 全仓格式化；CI 增加 `moon fmt --check` 步骤。
+
 ## [0.1.2] - 2026-11-09
 
 ### Added

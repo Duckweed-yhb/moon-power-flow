@@ -12,16 +12,16 @@
 > 不含环网、四线中性线、负荷静特性与 PV 节点。单相侧只做 1 Slack + 若干 PQ。
 > 计划项在「计划中」一节，不写成已实现。
 
-> 已发布：`Duckweed/moon-power-flow@0.1.2`（2026-11-09），`moon add Duckweed/moon-power-flow` 可安装。
+> 已发布：`Duckweed/moon-power-flow@0.1.3`（2026-11-09），`moon add Duckweed/moon-power-flow` 可安装。
 
 ## 快速开始
 
-本机工具链：moon 0.1.20261012（moonc v0.10.15）。下列命令在仓库根目录执行，
+本机工具链：moon 0.1.30261012（moonc v0.10.15）。下列命令在仓库根目录执行，
 验证时显式指定后端，避免默认目标在本机环境缺预编译产物时产生歧义。
 
 | 目的 | 命令 |
 |---|---|
-| 安装到其他 MoonBit 项目 | `moon add Duckweed/moon-power-flow@0.1.2` |
+| 安装到其他 MoonBit 项目 | `moon add Duckweed/moon-power-flow@0.1.3` |
 | 静态检查（native，警告即错误） | `moon check --target native --deny-warn` |
 | 运行测试（native） | `moon test --target native` |
 | 静态检查（wasm-gc） | `moon check --target wasm-gc --deny-warn` |
@@ -89,7 +89,7 @@ moon-power-flow/
   （Python 独立实现前推回代）算出并写死在 `dist/fixtures_test.mbt`，
   不取自本库输出。
 - 单相侧：三节点算例 GS 8 次扫描收敛，Ybus 期望值由手算给出。
-- 发布：`Duckweed/moon-power-flow@0.1.2` 已于 2026-11-09 上线 mooncakes（Latest 0.1.2，MIT）；本地复跑 native / wasm-gc / js 三后端 `moon test` 均 28/28，`--deny-warn` 严格检查通过。
+- 发布：`Duckweed/moon-power-flow@0.1.3` 已于 2026-11-09 上线 mooncakes（Latest 0.1.3，MIT）；本地复跑 native / wasm-gc / js 三后端 `moon test` 均 28/28，`--deny-warn` 严格检查通过。
 
 ## 计划中（本轮未实现，不计入已交付）
 
