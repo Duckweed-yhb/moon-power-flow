@@ -133,4 +133,4 @@ moon-power-flow/
 
 ## 许可证
 
-MIT，详见 `LICENSE`。
+MIT，详见 `LICENSE`。来源、参考项目、测试数据与 AI 使用范围见 [`PROVENANCE.md`](PROVENANCE.md)。
