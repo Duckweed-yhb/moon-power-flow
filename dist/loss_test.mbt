@@ -12,10 +12,8 @@ fn near_pu(actual : Double, expected : Double) -> Bool {
 }
 
 ///|
-test "loss is zero when there is no load" {
-  // 四个节点全零负荷：根注入 0、损耗 0、平衡残差 0。
-  // 用一个只有根负荷为零的算例：直接取内置算例并把 v_root 保持，负荷全零
-  // 无法通过 cases 构造，这里改用「负荷为 0 的两节点」的最小网络。
+test "balanced three phase case keeps the power balance" {
+  // 三相平衡算例（三相退化检查用）：损耗应当很小但非负，守恒关系仍成立。
   let net = @dist.case_balanced()
   let topo = match @dist.build_topology(net) {
     Ok(t) => t
