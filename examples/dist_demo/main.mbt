@@ -57,6 +57,21 @@ fn main {
         "branch 2->3: a=" + fmt_cx(cur[1].a()) + "  c=" + fmt_cx(cur[1].c()),
       )
       println("branch 2->4: c=" + fmt_cx(cur[2].c()))
+      // 功率平衡：根注入 = 负荷需求 + 损耗。残差就是「损耗算错没有」的证据。
+      let loss = @dist.total_loss_active(net, r)
+      let load = @dist.load_demand_active(net)
+      let inject = @dist.root_injection_active(net, r)
+      println(
+        "active power: root injection=" +
+        inject.to_string() +
+        " pu, load=" +
+        load.to_string() +
+        " pu, loss=" +
+        loss.to_string() +
+        " pu, residual=" +
+        (inject - load - loss).to_string() +
+        " pu",
+      )
     }
     Err(e) => println("sweep error: " + e.describe())
   }

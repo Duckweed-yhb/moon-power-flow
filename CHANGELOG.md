@@ -2,6 +2,20 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.1.5] - 2026-11-10
+
+### Added
+
+- `dist/loss.mbt`：支路损耗与功率平衡。`branch_losses` 给每条支路三相复功率损耗
+  （`S_p = (Z3·I)_p · conj(I_p)`，含相间互阻抗耦合），`total_loss_active` 给全网有功损耗，
+  `load_demand_active` 与 `root_injection_active` 供守恒律校验。
+- 4 条测试用「根注入 = 负荷需求 + 损耗」做判据（平衡算例、不平衡四节点、带互阻抗两节点、
+  逐支路有功非负）：漏算相间互阻抗时这条立刻失衡。
+
+### Changed
+
+- 测试数 35 → 39。
+
 ## [0.1.4] - 2026-11-10
 
 ### Added

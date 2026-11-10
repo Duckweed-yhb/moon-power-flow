@@ -12,7 +12,7 @@
 > 不含环网、四线中性线、负荷静特性与 PV 节点。单相侧只做 1 Slack + 若干 PQ。
 > 计划项在「计划中」一节，不写成已实现。
 
-> 已发布：`Duckweed/moon-power-flow@0.1.4`（2026-11-10），`moon add Duckweed/moon-power-flow` 可安装。
+> 已发布：`Duckweed/moon-power-flow@0.1.5`（2026-11-10），`moon add Duckweed/moon-power-flow` 可安装。
 
 ## 快速开始
 
@@ -21,7 +21,7 @@
 
 | 目的 | 命令 |
 |---|---|
-| 安装到其他 MoonBit 项目 | `moon add Duckweed/moon-power-flow@0.1.4` |
+| 安装到其他 MoonBit 项目 | `moon add Duckweed/moon-power-flow@0.1.5` |
 | 静态检查（native，警告即错误） | `moon check --target native --deny-warn` |
 | 运行测试（native） | `moon test --target native` |
 | 静态检查（wasm-gc） | `moon check --target wasm-gc --deny-warn` |
@@ -36,7 +36,7 @@ CI（`.github/workflows/ci.yml`）跑三件事：`moon fmt --check`；`wasm-gc` 
 
 ```text
 moon-power-flow/
-├── dist/       三相不平衡配电网：相量、3x3 阻抗矩阵、辐射状拓扑校验、前推回代、对称分量与 VUF
+├── dist/       三相不平衡配电网：相量、3x3 阻抗矩阵、辐射状拓扑校验、前推回代、对称分量与 VUF、支路损耗
 ├── model/      单相平衡模型：母线、支路、网络；一致性校验与结构化错误
 ├── ybus/       单相节点复导纳矩阵 Ybus 组装
 ├── solver/     单相 GS 迭代求解、收敛判据、支路复功率潮流与损耗
@@ -73,6 +73,11 @@ moon-power-flow/
   按 `VUF = |V2|/|V1| × 100%` 给出不平衡度。正序接近零（纯负序、纯零序）时返回 0 而不是
   inf/NaN——浮点残差会把比值放大到 1e17 量级，那个数字没有工程意义。示例 `dist_demo`
   每条母线都会打印 VUF。
+- 支路损耗与功率平衡（`dist/loss.mbt`）：逐相 `S_p = (Z3·I)_p · conj(I_p)`，相间互阻抗
+  已包含在 `(Z3·I)` 里；`branch_losses` 给每条支路三相损耗，`total_loss_active` 给全网有功
+  损耗，`load_demand_active` / `root_injection_active` 供功率平衡校验。验收判据不是参考数据，
+  而是守恒律：根注入 = 负荷需求 + 损耗。四节点算例实测 0.30046496 = 0.3 + 0.00046496，
+  残差 −6.5e−11 p.u.。
 
 ### 单相平衡（`model/` + `ybus/` + `solver/`，对照）
 
@@ -83,7 +88,7 @@ moon-power-flow/
 
 ## 已验证（本机实测，2026-11-10 复跑）
 
-- `moon test --target native` / `--target wasm-gc`：**35/35**，两后端一致。
+- `moon test --target native` / `--target wasm-gc`：**39/39**，两后端一致。
   `js` 后端的测试本机跑不了（PATH 里没有可用的 node），交给 CI 验证；
   `moon check --deny-warn --target js` 与 `moon build --target js` 本机干净通过。
 - `moon check --target native --deny-warn`、`--target js --deny-warn`：0 警告。
@@ -98,7 +103,7 @@ moon-power-flow/
   （Python 独立实现前推回代）算出并写死在 `dist/fixtures_test.mbt`，
   不取自本库输出。
 - 单相侧：三节点算例 GS 8 次扫描收敛，Ybus 期望值由手算给出。
-- 发布：`Duckweed/moon-power-flow@0.1.4` 已于 2026-11-10 上线 mooncakes（Latest 0.1.3，MIT）；本地 2026-11-10 复跑 native / wasm-gc 两后端 `moon test` 均 35/35，三个目标的 `--deny-warn` 严格检查通过。
+- 发布：`Duckweed/moon-power-flow@0.1.5` 已于 2026-11-10 上线 mooncakes（Latest 0.1.5，MIT）；本地 2026-11-10 复跑 native / wasm-gc 两后端 `moon test` 均 39/39，三个目标的 `--deny-warn` 严格检查通过。
 
 ## 计划中（本轮未实现，不计入已交付）
 
