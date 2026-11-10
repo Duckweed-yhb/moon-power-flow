@@ -5,19 +5,27 @@
 // 四类校验失败路径（缺 Slack、母线重号、零阻抗支路、端点不存在）由 model 包测试覆盖，
 // 本文件覆盖求解器失败路径：超过迭代上限。
 
+///|
 fn solved() -> (@model.Network, Array[Array[@model.Cx]], @solver.SolveOk) raise {
   let net = match @cases.case_three_bus() {
     Ok(n) => n
     Err(e) => @test.fail("case should validate: " + e.describe())
   }
   let y = @ybus.build_ybus(net)
-  let ok = match @solver.gauss_seidel(net, y, @cases.default_tol(), @cases.default_max_iter()) {
+  let ok = match
+    @solver.gauss_seidel(
+      net,
+      y,
+      @cases.default_tol(),
+      @cases.default_max_iter(),
+    ) {
     Ok(o) => o
     Err(e) => @test.fail("should converge: " + e.describe())
   }
   (net, y, ok)
 }
 
+///|
 test "GS converges on built-in case within tolerance" {
   let (_, _, ok) = solved()
   @test.assert_eq(ok.iter() > 0 && ok.iter() <= @cases.default_max_iter(), true)
@@ -26,10 +34,11 @@ test "GS converges on built-in case within tolerance" {
   // bus3 0.981741084187∠-1.0395866766°；角度为弧度。
   @test.assert_eq((@model.cx_abs(v[1]) - 0.988193798654).abs() < 1.0e-6, true)
   @test.assert_eq((@model.cx_abs(v[2]) - 0.981741084187).abs() < 1.0e-6, true)
-  @test.assert_eq((@model.cx_arg(v[1]) - (-0.011701095669)).abs() < 1.0e-6, true)
-  @test.assert_eq((@model.cx_arg(v[2]) - (-0.018144210367)).abs() < 1.0e-6, true)
+  @test.assert_eq((@model.cx_arg(v[1]) - -0.011701095669).abs() < 1.0e-6, true)
+  @test.assert_eq((@model.cx_arg(v[2]) - -0.018144210367).abs() < 1.0e-6, true)
 }
 
+///|
 test "PQ buses satisfy nodal power balance" {
   let (net, y, ok) = solved()
   let v = ok.voltages()
@@ -58,6 +67,7 @@ test "PQ buses satisfy nodal power balance" {
   }
 }
 
+///|
 test "slack voltage stays fixed at 1.0 angle 0" {
   let (net, _, ok) = solved()
   let si = match net.slack_index() {
@@ -70,6 +80,7 @@ test "slack voltage stays fixed at 1.0 angle 0" {
   @test.assert_eq(@model.cx_arg(v).abs() < 1.0e-12, true)
 }
 
+///|
 test "PQ voltage magnitudes remain in a sane band" {
   let (_, _, ok) = solved()
   let v = ok.voltages()
@@ -77,6 +88,7 @@ test "PQ voltage magnitudes remain in a sane band" {
   @test.assert_eq(@model.cx_abs(v[2]) > 0.9 && @model.cx_abs(v[2]) < 1.1, true)
 }
 
+///|
 test "iteration limit returns structured NotConverged instead of panic" {
   let net = match @cases.case_three_bus() {
     Ok(n) => n
@@ -91,6 +103,7 @@ test "iteration limit returns structured NotConverged instead of panic" {
   @test.assert_eq(hit, true)
 }
 
+///|
 test "branch flow count matches branch count and active loss is non-negative" {
   let (net, _, ok) = solved()
   let flows = @solver.all_flows(net, ok.voltages())

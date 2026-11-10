@@ -131,6 +131,14 @@ moon-power-flow/
 - GitHub 公开仓库 `Zcxssxx/gridflow`（https://github.com/Zcxssxx/gridflow ，Apache-2.0）：MoonBit 写的平衡正序 AC 潮流库，极坐标牛顿-拉夫逊，PQ/PV/slack，MATPOWER case 文件子集，PGLib-OPF 14/30/118 母线验证；该仓库尚未发布到 mooncakes.io（`moon view Zcxssxx/gridflow` 返回 404，`moon search gridflow` 无命中）。它对应**平衡正序**方向，与本库三相不平衡主线不同。
 - 差异：本库主线是**三相不平衡配电**（每相独立负荷、3x3 相间耦合阻抗、辐射状前推回代），gridflow 明确不覆盖 unbalanced distribution models；单相 GS 部分只作对照基线，不作为主卖点。
 
+## AI 工具使用说明
+
+开发使用了 AI 编程工具，选题、边界与质量由本人把控。
+
+- AI 辅助：包骨架、测试初稿、文档初稿。
+- 人工把控：选题转向（平衡正序 GS → 三相不平衡前推回代）、与 gridflow 的差异判断、拓扑校验规则、Python 独立基准的参数与容差设定。
+- AI 生成的测试逐条对照教材公式核过断言，三后端全绿才合并。
+
 ## 许可证
 
 MIT，详见 `LICENSE`。来源、参考项目、测试数据与 AI 使用范围见 [`PROVENANCE.md`](PROVENANCE.md)。

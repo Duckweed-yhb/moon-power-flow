@@ -13,51 +13,61 @@
 // 恒定功率负荷 + 三相耦合阻抗下，前推回代是配电系统常用解法；它不要求
 // 雅可比矩阵，也不假设三相平衡。
 
+///|
 /// 求解成功：迭代次数、各母线三相电压、各支路三相电流、最后偏差。
 pub struct SweepOk {
-  iter : Int
+  iter : Int32
   voltages : Array[Phasor]
   branch_currents : Array[Phasor]
   max_dv : Double
 }
 
-pub fn SweepOk::iter(self : SweepOk) -> Int {
+///|
+pub fn SweepOk::iter(self : SweepOk) -> Int32 {
   self.iter
 }
 
+///|
 pub fn SweepOk::voltages(self : SweepOk) -> Array[Phasor] {
   self.voltages
 }
 
+///|
 pub fn SweepOk::branch_currents(self : SweepOk) -> Array[Phasor] {
   self.branch_currents
 }
 
+///|
 pub fn SweepOk::max_dv(self : SweepOk) -> Double {
   self.max_dv
 }
 
+///|
 /// 求解失败：拓扑非法，或达到迭代上限仍未收敛。
 pub enum SweepErr {
   Topology(TopoErr)
-  NotConverged(Int, Double)
+  NotConverged(Int32, Double)
 }
 
+///|
 pub fn SweepErr::describe(self : SweepErr) -> String {
   match self {
     Topology(e) => "topology: " + e.describe()
     NotConverged(iter, dv) =>
-      "did not converge after " + iter.to_string() + " sweeps, last max |dV| = " +
+      "did not converge after " +
+      iter.to_string() +
+      " sweeps, last max |dV| = " +
       dv.to_string()
   }
 }
 
+///|
 /// 前推回代求解。`topo` 必须由同一 `net` 通过 `build_topology` 得到。
 pub fn sweep(
   net : DistNet,
   topo : Topology,
   tol : Double,
-  max_iter : Int,
+  max_iter : Int32,
 ) -> Result[SweepOk, SweepErr] {
   let n = net.node_count()
   let m = net.edge_count()
@@ -111,12 +121,7 @@ pub fn sweep(
     }
     last_dv = max_dv
     if max_dv < tol {
-      return Ok({
-        iter: iter,
-        voltages: v,
-        branch_currents: i_branch,
-        max_dv: max_dv,
-      })
+      return Ok({ iter, voltages: v, branch_currents: i_branch, max_dv, })
     }
   }
   Err(SweepErr::NotConverged(max_iter, last_dv))

@@ -1,13 +1,15 @@
+///|
 /// dist 包单测：拓扑校验、前推回代收敛、平衡退化、3x3 耦合与失败路径。
-
 fn approx_equal(x : Double, y : Double, eps : Double) -> Bool {
   (x - y).abs() < eps
 }
 
+///|
 let eps = 0.000000001
 
 // ---------- 拓扑 ----------
 
+///|
 test "topology: four-node radial case is accepted" {
   let net = @dist.case_four_node()
   match @dist.build_topology(net) {
@@ -25,9 +27,12 @@ test "topology: four-node radial case is accepted" {
   }
 }
 
+///|
 test "topology: a cycle is rejected as not radial" {
   let z = @dist.z3_diag(
-    @model.cx(0.01, 0.02), @model.cx(0.01, 0.02), @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
   )
   let nodes = [
     @dist.DistNode::make(1, @dist.Phasor::zero()),
@@ -41,7 +46,12 @@ test "topology: a cycle is rejected as not radial" {
     @dist.DistEdge::make(3, 4, z),
     @dist.DistEdge::make(4, 1, z),
   ]
-  let net = @dist.DistNet::make(nodes, edges, 1, @dist.Phasor::balanced(1.0, 0.0))
+  let net = @dist.DistNet::make(
+    nodes,
+    edges,
+    1,
+    @dist.Phasor::balanced(1.0, 0.0),
+  )
   match @dist.build_topology(net) {
     Ok(_) => fail("expected NotRadial for a 4-node / 4-edge cycle")
     Err(@dist.NotRadial) => ()
@@ -49,9 +59,12 @@ test "topology: a cycle is rejected as not radial" {
   }
 }
 
+///|
 test "topology: disconnected node is rejected" {
   let z = @dist.z3_diag(
-    @model.cx(0.01, 0.02), @model.cx(0.01, 0.02), @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
   )
   let nodes = [
     @dist.DistNode::make(1, @dist.Phasor::zero()),
@@ -65,7 +78,12 @@ test "topology: disconnected node is rejected" {
     @dist.DistEdge::make(2, 3, z),
     @dist.DistEdge::make(3, 1, z),
   ]
-  let net = @dist.DistNet::make(nodes, edges, 1, @dist.Phasor::balanced(1.0, 0.0))
+  let net = @dist.DistNet::make(
+    nodes,
+    edges,
+    1,
+    @dist.Phasor::balanced(1.0, 0.0),
+  )
   match @dist.build_topology(net) {
     Ok(_) => fail("expected Disconnected")
     Err(@dist.Disconnected(4)) => ()
@@ -73,16 +91,24 @@ test "topology: disconnected node is rejected" {
   }
 }
 
+///|
 test "topology: duplicate node id is rejected" {
   let z = @dist.z3_diag(
-    @model.cx(0.01, 0.02), @model.cx(0.01, 0.02), @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
   )
   let nodes = [
     @dist.DistNode::make(1, @dist.Phasor::zero()),
     @dist.DistNode::make(1, @dist.Phasor::zero()),
   ]
   let edges = [@dist.DistEdge::make(1, 1, z)]
-  let net = @dist.DistNet::make(nodes, edges, 1, @dist.Phasor::balanced(1.0, 0.0))
+  let net = @dist.DistNet::make(
+    nodes,
+    edges,
+    1,
+    @dist.Phasor::balanced(1.0, 0.0),
+  )
   match @dist.build_topology(net) {
     Ok(_) => fail("expected DuplicateNodeId")
     Err(@dist.DuplicateNodeId(1)) => ()
@@ -92,6 +118,7 @@ test "topology: duplicate node id is rejected" {
 
 // ---------- 前推回代 ----------
 
+///|
 test "sweep: balanced case collapses to a single three-phase value" {
   let net = @dist.case_balanced()
   let topo = match @dist.build_topology(net) {
@@ -118,6 +145,7 @@ test "sweep: balanced case collapses to a single three-phase value" {
   }
 }
 
+///|
 test "sweep: unbalanced case converges and the three phases differ" {
   let net = @dist.case_four_node()
   let topo = match @dist.build_topology(net) {
@@ -141,6 +169,7 @@ test "sweep: unbalanced case converges and the three phases differ" {
   }
 }
 
+///|
 test "sweep: coupled impedance makes a untouched phase deviate" {
   let net = @dist.case_coupled()
   let topo = match @dist.build_topology(net) {
@@ -162,16 +191,24 @@ test "sweep: coupled impedance makes a untouched phase deviate" {
   }
 }
 
+///|
 test "sweep: absurd load hits iteration limit instead of hanging" {
   let z = @dist.z3_diag(
-    @model.cx(0.01, 0.02), @model.cx(0.01, 0.02), @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
   )
   let nodes = [
     @dist.DistNode::make(1, @dist.Phasor::zero()),
     @dist.DistNode::make(2, @dist.Phasor::uniform(@model.cx(50.0, 20.0))),
   ]
   let edges = [@dist.DistEdge::make(1, 2, z)]
-  let net = @dist.DistNet::make(nodes, edges, 1, @dist.Phasor::balanced(1.0, 0.0))
+  let net = @dist.DistNet::make(
+    nodes,
+    edges,
+    1,
+    @dist.Phasor::balanced(1.0, 0.0),
+  )
   let topo = match @dist.build_topology(net) {
     Ok(t) => t
     Err(e) => fail(e.describe())

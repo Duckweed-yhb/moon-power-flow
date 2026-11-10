@@ -4,36 +4,43 @@
 // S_to 同理从 b 端计算；支路复功率损耗 S_loss = S_from + S_to（p.u.）。
 // 本轮不含对地充电功率，损耗只来自串联阻抗。
 
+///|
 /// 单条支路两端复功率与损耗（复数值，p.u.）。
 pub struct BranchFlow {
-  from_id : Int
-  to_id : Int
+  from_id : Int32
+  to_id : Int32
   s_from : @model.Cx
   s_to : @model.Cx
   loss : @model.Cx
 }
 
-pub fn BranchFlow::from_id(self : BranchFlow) -> Int {
+///|
+pub fn BranchFlow::from_id(self : BranchFlow) -> Int32 {
   self.from_id
 }
 
-pub fn BranchFlow::to_id(self : BranchFlow) -> Int {
+///|
+pub fn BranchFlow::to_id(self : BranchFlow) -> Int32 {
   self.to_id
 }
 
+///|
 pub fn BranchFlow::s_from(self : BranchFlow) -> @model.Cx {
   self.s_from
 }
 
+///|
 pub fn BranchFlow::s_to(self : BranchFlow) -> @model.Cx {
   self.s_to
 }
 
+///|
 pub fn BranchFlow::loss(self : BranchFlow) -> @model.Cx {
   self.loss
 }
 
-fn local_index(net : @model.Network, id : Int) -> Int {
+///|
+fn local_index(net : @model.Network, id : Int32) -> Int32 {
   let n = net.bus_count()
   let mut i = 0
   while i < n {
@@ -45,11 +52,12 @@ fn local_index(net : @model.Network, id : Int) -> Int {
   0
 }
 
+///|
 /// 计算第 k 条支路的两端潮流与损耗。
 pub fn branch_flow(
   net : @model.Network,
   voltages : Array[@model.Cx],
-  k : Int,
+  k : Int32,
 ) -> BranchFlow {
   let br = net.branch_at(k)
   let a = local_index(net, br.from_id())
@@ -62,11 +70,15 @@ pub fn branch_flow(
   let s_from = @model.cx_mul(va, @model.cx_conj(i_ab))
   let s_to = @model.cx_mul(vb, @model.cx_conj(i_ba))
   let loss = @model.cx_add(s_from, s_to)
-  { from_id: br.from_id(), to_id: br.to_id(), s_from: s_from, s_to: s_to, loss: loss }
+  { from_id: br.from_id(), to_id: br.to_id(), s_from, s_to, loss, }
 }
 
+///|
 /// 汇总全部支路潮流。
-pub fn all_flows(net : @model.Network, voltages : Array[@model.Cx]) -> Array[BranchFlow] {
+pub fn all_flows(
+  net : @model.Network,
+  voltages : Array[@model.Cx],
+) -> Array[BranchFlow] {
   let m = net.branch_count()
   Array::makei(m, k => branch_flow(net, voltages, k))
 }

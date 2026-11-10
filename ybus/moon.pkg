@@ -1,5 +1,5 @@
 import {
-  "Duckweed/moon-power-flow/model" @model,
+  "Duckweed/moon-power-flow/model",
 }
 
 import {

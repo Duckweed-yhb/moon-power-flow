@@ -3,20 +3,22 @@
 // 前推回代的正确性依赖两件事：网络是一棵树（唯一路径、无环），以及有一个明确的
 // 根（变电站出口）。本包把这两件事变成结构化的校验结果，失败不 panic。
 
+///|
 /// 拓扑校验失败原因。
 pub enum TopoErr {
   /// 根母线编号在节点表里不存在。
   RootNotFound
   /// 母线外部编号重复。
-  DuplicateNodeId(Int)
+  DuplicateNodeId(Int32)
   /// 支路端点引用了不存在的母线编号。
-  UnknownEndpoint(Int)
+  UnknownEndpoint(Int32)
   /// 支路数不等于 节点数 - 1：一定不是树（有环或缺边）。
   NotRadial
   /// 从根出发无法到达该母线。
-  Disconnected(Int)
+  Disconnected(Int32)
 }
 
+///|
 pub fn TopoErr::describe(self : TopoErr) -> String {
   match self {
     RootNotFound => "root bus not found"
@@ -27,34 +29,40 @@ pub fn TopoErr::describe(self : TopoErr) -> String {
   }
 }
 
+///|
 /// 校验通过后的拓扑：BFS 序、每节点父边、每节点父节点、每节点子节点。
 pub struct Topology {
-  order : Array[Int]
-  parent_edge : Array[Int]
-  parent : Array[Int]
-  children : Array[Array[Int]]
+  order : Array[Int32]
+  parent_edge : Array[Int32]
+  parent : Array[Int32]
+  children : Array[Array[Int32]]
 }
 
+///|
 /// BFS 访问顺序（根在前，存内部下标）。
-pub fn Topology::order(self : Topology) -> Array[Int] {
+pub fn Topology::order(self : Topology) -> Array[Int32] {
   self.order
 }
 
+///|
 /// 每个节点的父支路下标，根为 -1。
-pub fn Topology::parent_edge(self : Topology) -> Array[Int] {
+pub fn Topology::parent_edge(self : Topology) -> Array[Int32] {
   self.parent_edge
 }
 
+///|
 /// 每个节点的父节点内部下标，根为 -1。
-pub fn Topology::parent(self : Topology) -> Array[Int] {
+pub fn Topology::parent(self : Topology) -> Array[Int32] {
   self.parent
 }
 
+///|
 /// 每个节点的子节点内部下标。
-pub fn Topology::children(self : Topology) -> Array[Array[Int]] {
+pub fn Topology::children(self : Topology) -> Array[Array[Int32]] {
   self.children
 }
 
+///|
 /// 校验网络并生成拓扑。规则：
 ///   1. 母线编号唯一；
 ///   2. 根编号存在；
@@ -103,7 +111,7 @@ pub fn build_topology(net : DistNet) -> Result[Topology, TopoErr] {
     return Err(NotRadial)
   }
   // 邻接表：节点 -> [(邻居, 边下标)]
-  let adj : Array[Array[(Int, Int)]] = []
+  let adj : Array[Array[(Int32, Int32)]] = []
   for _ in 0..<n {
     adj.push([])
   }
@@ -127,20 +135,20 @@ pub fn build_topology(net : DistNet) -> Result[Topology, TopoErr] {
   for _ in 0..<n {
     visited.push(false)
   }
-  let parent_edge : Array[Int] = []
+  let parent_edge : Array[Int32] = []
   for _ in 0..<n {
     parent_edge.push(-1)
   }
-  let parent : Array[Int] = []
+  let parent : Array[Int32] = []
   for _ in 0..<n {
     parent.push(-1)
   }
-  let children : Array[Array[Int]] = []
+  let children : Array[Array[Int32]] = []
   for _ in 0..<n {
     children.push([])
   }
-  let order : Array[Int] = []
-  let queue : Array[Int] = []
+  let order : Array[Int32] = []
+  let queue : Array[Int32] = []
   queue.push(root)
   visited[root] = true
   let mut head = 0
@@ -172,12 +180,13 @@ pub fn build_topology(net : DistNet) -> Result[Topology, TopoErr] {
     let _ = found
     return Err(Disconnected(net.node_at(miss).id()))
   }
-  Ok({ order: order, parent_edge: parent_edge, parent: parent, children: children })
+  Ok({ order, parent_edge, parent, children, })
 }
 
+///|
 /// 反向遍历顺序（叶子到根），用于回代阶段累加支路电流。
-pub fn Topology::reverse_order(self : Topology) -> Array[Int] {
-  let out : Array[Int] = []
+pub fn Topology::reverse_order(self : Topology) -> Array[Int32] {
+  let out : Array[Int32] = []
   let mut i = self.order.length()
   while i > 0 {
     i -= 1

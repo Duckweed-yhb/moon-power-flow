@@ -4,10 +4,16 @@
 // 输出：收敛迭代次数、各母线电压幅值与相角（度）、各支路两端有功/无功与损耗，
 // 全部功率与电压为标幺值 p.u.，基准容量 100 MVA。
 
+///|
 #warnings("-deprecated")
 fn run_demo(net : @model.Network) -> Unit {
   let y = @ybus.build_ybus(net)
-  let res = @solver.gauss_seidel(net, y, @cases.default_tol(), @cases.default_max_iter())
+  let res = @solver.gauss_seidel(
+    net,
+    y,
+    @cases.default_tol(),
+    @cases.default_max_iter(),
+  )
   match res {
     Err(e) => println(("solver did not converge:", e.describe()))
     Ok(ok) => {
@@ -53,8 +59,9 @@ fn run_demo(net : @model.Network) -> Unit {
   }
 }
 
+///|
 #warnings("-deprecated")
-fn main() -> Unit {
+fn main {
   match @cases.case_three_bus() {
     Err(e) => println(("validation failed:", e.describe()))
     Ok(net) => run_demo(net)

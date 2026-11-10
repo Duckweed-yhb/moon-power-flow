@@ -10,4 +10,10 @@ repository = "https://github.com/Duckweed-yhb/moon-power-flow"
 
 license = "MIT"
 
-keywords = ["power-flow", "distribution", "three-phase", "unbalanced", "backward-forward-sweep"]
+keywords = [
+  "power-flow",
+  "distribution",
+  "three-phase",
+  "unbalanced",
+  "backward-forward-sweep",
+]

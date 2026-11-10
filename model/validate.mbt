@@ -9,28 +9,35 @@
 // 任何一条不满足都返回结构化 Err，不 panic、不抛异常中断；
 // 调用方（ybus、solver、cases、demo）只处理 Result。
 
+///|
 /// 校验失败原因，变体携带定位信息（母线编号或支路下标）。
 pub enum NetErr {
-  DuplicateId(Int)
+  DuplicateId(Int32)
   NoSlack
-  MultipleSlack(Int)
-  UnknownEndpoint(Int, Int)
-  ZeroImpedance(Int)
+  MultipleSlack(Int32)
+  UnknownEndpoint(Int32, Int32)
+  ZeroImpedance(Int32)
 }
 
+///|
 pub fn NetErr::describe(self : NetErr) -> String {
   match self {
     DuplicateId(id) => "duplicate bus id: " + id.to_string()
     NoSlack => "no slack bus found"
-    MultipleSlack(count) => "expected exactly one slack bus, got " + count.to_string()
+    MultipleSlack(count) =>
+      "expected exactly one slack bus, got " + count.to_string()
     UnknownEndpoint(branch_index, bus_id) =>
-      "branch " + branch_index.to_string() + " references missing bus id " + bus_id.to_string()
+      "branch " +
+      branch_index.to_string() +
+      " references missing bus id " +
+      bus_id.to_string()
     ZeroImpedance(branch_index) =>
       "branch " + branch_index.to_string() + " has zero series impedance"
   }
 }
 
-fn has_bus(buses : Array[Bus], id : Int) -> Bool {
+///|
+fn has_bus(buses : Array[Bus], id : Int32) -> Bool {
   let n = buses.length()
   let mut i = 0
   while i < n {
@@ -42,8 +49,12 @@ fn has_bus(buses : Array[Bus], id : Int) -> Bool {
   false
 }
 
+///|
 /// 校验母线表与支路表；通过时返回封装好的 Network，否则返回首个失败原因。
-pub fn validate(buses : Array[Bus], branches : Array[Branch]) -> Result[Network, NetErr] {
+pub fn validate(
+  buses : Array[Bus],
+  branches : Array[Branch],
+) -> Result[Network, NetErr] {
   // 规则 1：母线编号唯一。
   let n = buses.length()
   let mut i = 0

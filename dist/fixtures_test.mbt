@@ -1,10 +1,10 @@
+///|
 /// 三相不平衡算例的独立基准。
 ///
 /// 期望值由 `scripts/gen_dist_fixtures.py` 里另行实现的前推回代算出
 /// （Python 复数、独立写一遍回代/前推），不读取 MoonBit 侧输出。
 /// 求解容差取 1e-12、迭代上限 200，保证对照点本身是收敛值。
 /// `approx_equal` 复用同包 `dist_test.mbt` 的定义。
-
 test "dist fixtures: four-node unbalanced case (independent Python BFS)" {
   let net = @dist.case_four_node()
   let topo = match @dist.build_topology(net) {

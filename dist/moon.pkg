@@ -6,5 +6,5 @@
 supported_targets = "wasm+wasm-gc+js+native"
 
 import {
-  "Duckweed/moon-power-flow/model" @model,
+  "Duckweed/moon-power-flow/model",
 }

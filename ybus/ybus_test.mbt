@@ -14,19 +14,25 @@
 //   Y12=Y21 = -5 + j15      Y13=Y31 = -5/3 + j5
 //   Y23=Y32 = -1.25 + j3.75
 
+///|
 fn close(a : @model.Cx, b : @model.Cx, tol : Double) -> Bool {
   (a.re() - b.re()).abs() < tol && (a.im() - b.im()).abs() < tol
 }
 
+///|
 fn sample_network() -> @model.Network raise {
   let slack = @model.Bus::make_slack(1, "slack", @model.cx(1.0, 0.0))
   let pq2 = @model.Bus::make_pq(2, "pq2", -0.20, -0.10)
   let pq3 = @model.Bus::make_pq(3, "pq3", -0.15, -0.075)
-  let buses = Array::makei(0, _ => @model.Bus::make_slack(0, "", @model.cx(0.0, 0.0)))
+  let buses = Array::makei(0, _ => {
+    @model.Bus::make_slack(0, "", @model.cx(0.0, 0.0))
+  })
   buses.push(slack)
   buses.push(pq2)
   buses.push(pq3)
-  let branches = Array::makei(0, _ => @model.Branch::make(0, 0, @model.cx(1.0, 0.0)))
+  let branches = Array::makei(0, _ => {
+    @model.Branch::make(0, 0, @model.cx(1.0, 0.0))
+  })
   branches.push(@model.Branch::make(1, 2, @model.cx(0.02, 0.06)))
   branches.push(@model.Branch::make(2, 3, @model.cx(0.08, 0.24)))
   branches.push(@model.Branch::make(1, 3, @model.cx(0.06, 0.18)))
@@ -36,6 +42,7 @@ fn sample_network() -> @model.Network raise {
   }
 }
 
+///|
 test "branch admittance equals reciprocal hand calculation" {
   let tol = 1.0e-9
   let y12 = @ybus.branch_admittance(@model.cx(0.02, 0.06))
@@ -46,6 +53,7 @@ test "branch admittance equals reciprocal hand calculation" {
   @test.assert_eq(close(y13, @model.cx(5.0 / 3.0, -5.0), tol), true)
 }
 
+///|
 test "Ybus diagonal terms match hand calculation" {
   let tol = 1.0e-9
   let net = sample_network()
@@ -55,6 +63,7 @@ test "Ybus diagonal terms match hand calculation" {
   @test.assert_eq(close(y[2][2], @model.cx(35.0 / 12.0, -8.75), tol), true)
 }
 
+///|
 test "Ybus off-diagonal terms match hand calculation and symmetry" {
   let tol = 1.0e-9
   let net = sample_network()

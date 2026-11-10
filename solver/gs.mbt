@@ -11,39 +11,47 @@
 // 收敛判据：全部 PQ 节点本次与上次电压复向量最大模差小于 tol。
 // 达到 max_iter 仍未收敛返回结构化错误，不 panic。
 
+///|
 /// 求解成功结果：迭代次数与各节点最终电压（复数值，p.u.）。
 pub struct SolveOk {
-  iter : Int
+  iter : Int32
   voltages : Array[@model.Cx]
 }
 
-pub fn SolveOk::iter(self : SolveOk) -> Int {
+///|
+pub fn SolveOk::iter(self : SolveOk) -> Int32 {
   self.iter
 }
 
+///|
 pub fn SolveOk::voltages(self : SolveOk) -> Array[@model.Cx] {
   self.voltages
 }
 
+///|
 /// 求解失败原因。NotConverged 携带达到的迭代次数与最后一轮最大电压偏差。
 pub enum SolveErr {
-  NotConverged(Int, Double)
+  NotConverged(Int32, Double)
 }
 
+///|
 pub fn SolveErr::describe(self : SolveErr) -> String {
   match self {
     NotConverged(iter, delta) =>
-      "did not converge after " + iter.to_string() + " sweeps, last max |dV| = " +
+      "did not converge after " +
+      iter.to_string() +
+      " sweeps, last max |dV| = " +
       delta.to_string()
   }
 }
 
+///|
 /// 从平坦启动（PQ 节点 1.0 + j0，Slack 取固定电压）开始 GS 迭代。
 pub fn gauss_seidel(
   net : @model.Network,
   ybus : Array[Array[@model.Cx]],
   tol : Double,
-  max_iter : Int,
+  max_iter : Int32,
 ) -> Result[SolveOk, SolveErr] {
   let n = net.bus_count()
   let slack = match net.slack_index() {
@@ -77,7 +85,10 @@ pub fn gauss_seidel(
           }
           j += 1
         }
-        let numer = @model.cx_sub(@model.cx_div(s_conj, @model.cx_conj(vi_old)), sum_ykv)
+        let numer = @model.cx_sub(
+          @model.cx_div(s_conj, @model.cx_conj(vi_old)),
+          sum_ykv,
+        )
         let vi_new = @model.cx_div(numer, ybus[i][i])
         let delta = @model.cx_abs(@model.cx_sub(vi_new, vi_old))
         if delta > max_delta {
@@ -89,7 +100,7 @@ pub fn gauss_seidel(
     }
     last_delta = max_delta
     if max_delta < tol {
-      return Ok({ iter: iter, voltages: v })
+      return Ok({ iter, voltages: v, })
     }
   }
   Err(NotConverged(max_iter, last_delta))

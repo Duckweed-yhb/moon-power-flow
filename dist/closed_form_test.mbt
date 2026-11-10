@@ -1,3 +1,4 @@
+///|
 /// 闭式解基准：两节点、纯有功负荷、纯电阻线路。
 ///
 /// 这个场景有解析解，不依赖迭代：设根电压 V1 = 1（每相），线路电阻 R，
@@ -8,20 +9,22 @@
 ///   V2 = (V1 + √(V1² - 4RP)) / 2
 ///
 /// 期望值直接由这个二次方程算出，和本库的迭代实现是两条独立的路径。
-
 test "sweep: two-node resistive load matches quadratic closed form" {
   let r = 0.05
   let p = 0.1
-  let z = @dist.z3_diag(
-    @model.cx(r, 0.0), @model.cx(r, 0.0), @model.cx(r, 0.0),
-  )
+  let z = @dist.z3_diag(@model.cx(r, 0.0), @model.cx(r, 0.0), @model.cx(r, 0.0))
   let s = @model.cx(p, 0.0)
   let nodes = [
     @dist.DistNode::make(1, @dist.Phasor::zero()),
     @dist.DistNode::make(2, @dist.Phasor::uniform(s)),
   ]
   let edges = [@dist.DistEdge::make(1, 2, z)]
-  let net = @dist.DistNet::make(nodes, edges, 1, @dist.Phasor::balanced(1.0, 0.0))
+  let net = @dist.DistNet::make(
+    nodes,
+    edges,
+    1,
+    @dist.Phasor::balanced(1.0, 0.0),
+  )
   let topo = match @dist.build_topology(net) {
     Ok(t) => t
     Err(e) => fail(e.describe())
@@ -42,16 +45,24 @@ test "sweep: two-node resistive load matches quadratic closed form" {
   }
 }
 
+///|
 test "sweep: no load leaves root voltage untouched" {
   let z = @dist.z3_diag(
-    @model.cx(0.01, 0.02), @model.cx(0.01, 0.02), @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
   )
   let nodes = [
     @dist.DistNode::make(1, @dist.Phasor::zero()),
     @dist.DistNode::make(2, @dist.Phasor::zero()),
   ]
   let edges = [@dist.DistEdge::make(1, 2, z)]
-  let net = @dist.DistNet::make(nodes, edges, 1, @dist.Phasor::balanced(1.0, 0.0))
+  let net = @dist.DistNet::make(
+    nodes,
+    edges,
+    1,
+    @dist.Phasor::balanced(1.0, 0.0),
+  )
   let topo = match @dist.build_topology(net) {
     Ok(t) => t
     Err(e) => fail(e.describe())

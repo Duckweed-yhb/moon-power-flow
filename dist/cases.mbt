@@ -3,6 +3,7 @@
 // 全部为标幺值：基准容量 100 kVA、基准相电压 230 V（即 S_base = 1.0 时
 // 1.0 p.u. 电压对应 230 V 相电压）。负荷按"取用为正"填写，缺相填 0。
 
+///|
 /// 四节点不平衡算例：1 为根，2/3/4 挂不同相位的单相与两相负荷。
 ///
 /// 拓扑：1 → 2 → {3, 4}，三条支路阻抗相同（0.01 + j0.02 p.u.），
@@ -39,6 +40,7 @@ pub fn case_four_node() -> DistNet {
   DistNet::make(nodes, edges, 1, Phasor::balanced(1.0, 0.0))
 }
 
+///|
 /// 平衡算例：同样拓扑与阻抗，但三相负荷完全相同、根电压平衡。
 /// 三相电压应退化为同一个数（用于对称性回归）。
 pub fn case_balanced() -> DistNet {
@@ -58,6 +60,7 @@ pub fn case_balanced() -> DistNet {
   DistNet::make(nodes, edges, 1, Phasor::balanced(1.0, 0.0))
 }
 
+///|
 /// 带相间互阻抗的算例：三相自阻抗不同、且存在 ab/ac/bc 互阻抗。
 /// 用来确认 3x3 矩阵不是只用了对角。
 pub fn case_coupled() -> DistNet {
