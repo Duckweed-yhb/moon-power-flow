@@ -6,25 +6,48 @@ on:
   pull_request:
 
 jobs:
-  wasm-gc:
-    name: check and test on wasm-gc
+  format:
+    name: format check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install MoonBit toolchain
-        run: |
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
-          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
-
-      - name: Format check
+      - name: Setup MoonBit
+        uses: hustcer/setup-moonbit@v1
+      - name: moon fmt --check
         run: moon fmt --check
 
+  build-and-test:
+    name: check & test (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 求解器不含 C FFI，三个目标的数值行为应当一致（浮点末位差异走容差断言）；
+        # 逐个跑，让「跨后端可用」是构建期事实而不是声明。
+        target: [wasm-gc, js, native]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup MoonBit
+        uses: hustcer/setup-moonbit@v1
+
       - name: Check (deny warnings)
-        run: moon check --target wasm-gc --deny-warn
+        run: moon check --target ${{ matrix.target }} --deny-warn
 
       - name: Build
-        run: moon build --target wasm-gc
+        run: moon build --target ${{ matrix.target }}
 
       - name: Test
-        run: moon test --target wasm-gc
+        run: moon test --target ${{ matrix.target }}
+
+  examples:
+    name: run examples (native)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup MoonBit
+        uses: hustcer/setup-moonbit@v1
+      # 验收第 6 条：示例要能被 CI 真正跑起来，两个示例都跑。
+      - name: Run examples/dist_demo (three-phase sweep)
+        run: moon run examples/dist_demo --target native
+      - name: Run examples/demo (single-phase GS baseline)
+        run: moon run examples/demo --target native

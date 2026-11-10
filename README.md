@@ -29,8 +29,8 @@
 | 三相配电示例（native） | `moon run examples/dist_demo --target native` |
 | 单相平衡示例（native） | `moon run examples/demo --target native` |
 
-CI（`.github/workflows/ci.yml`）起步只配置 wasm-gc 的 check 与 test，
-不宣称覆盖全部后端。
+CI（`.github/workflows/ci.yml`）跑三件事：`moon fmt --check`；`wasm-gc` / `js` / `native` 三个目标各自的
+`check --deny-warn` + `build` + `test`；以及两个示例的 `moon run --target native`。
 
 ## 包结构
 
@@ -77,9 +77,11 @@ moon-power-flow/
 - GS 迭代、收敛判据、迭代上限、支路复功率与损耗。
 - 一个三节点算例与 GS 示例。
 
-## 已验证（本机实测，2026-11-07）
+## 已验证（本机实测，2026-11-10 复跑）
 
-- `moon test --target native` / `wasm-gc` / `js`：**29/29**，三后端一致。
+- `moon test --target native` / `--target wasm-gc`：**29/29**，两后端一致。
+  `js` 后端的测试本机跑不了（PATH 里没有可用的 node），交给 CI 验证；
+  `moon check --deny-warn --target js` 与 `moon build --target js` 本机干净通过。
 - `moon check --target native --deny-warn`、`--target js --deny-warn`：0 警告。
 - 三相示例（`moon run examples/dist_demo --target native`，也跑过 js）：
   四节点不平衡算例 4 次扫描收敛，`max |dV| ≈ 4.6e-10`；
@@ -89,7 +91,7 @@ moon-power-flow/
   （Python 独立实现前推回代）算出并写死在 `dist/fixtures_test.mbt`，
   不取自本库输出。
 - 单相侧：三节点算例 GS 8 次扫描收敛，Ybus 期望值由手算给出。
-- 发布：`Duckweed/moon-power-flow@0.1.3` 已于 2026-11-10 上线 mooncakes（Latest 0.1.3，MIT）；本地复跑 native / wasm-gc / js 三后端 `moon test` 均 29/29，`--deny-warn` 严格检查通过。
+- 发布：`Duckweed/moon-power-flow@0.1.3` 已于 2026-11-10 上线 mooncakes（Latest 0.1.3，MIT）；本地 2026-11-10 复跑 native / wasm-gc 两后端 `moon test` 均 29/29，三个目标的 `--deny-warn` 严格检查通过。
 
 ## 计划中（本轮未实现，不计入已交付）
 
@@ -98,7 +100,6 @@ moon-power-flow/
 - 分布式电源（PV 型节点）与无功限值。
 - 牛顿-拉夫逊与连续潮流（电压崩溃裕度）。GitHub 参考实现 `Zcxssxx/gridflow`（未发布 mooncakes）覆盖平衡正序 NR，本项目优先做配电侧不平衡差异方向。
 - IEEE 123 / 34 节点等标准算例、稀疏存储、大规模网络。
-- js 后端 CI 接入（当前 CI 仅 wasm-gc；本地 js 测试已实测通过，尚未接入 CI）。
 
 ## 输入校验与失败路径覆盖
 
