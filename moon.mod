@@ -1,6 +1,6 @@
 name = "Duckweed/moon-power-flow"
 
-version = "0.1.8"
+version = "0.1.9"
 
 description = "Three-phase unbalanced distribution power-flow kernel: backward/forward sweep on radial networks with 3x3 phase-coupled branch impedance, pure MoonBit in per-unit values"
 

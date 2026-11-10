@@ -65,6 +65,9 @@ pub enum SweepErr {
   /// 必须单独报错：NaN 参与比较恒为 false，收敛判据 `dv > max_dv` 会一路
   /// 保持 `max_dv = 0`，第一轮就被判成「已收敛」，然后带着 NaN 电压返回 Ok。
   NonFinite(Int32)
+  /// 迭代上限 <= 0：没有可执行的迭代，参数本身是错的。
+  /// 以前返回 `NotConverged(0, 1.0)`，那个 1.0 是初始化占位值，不是真实偏差。
+  InvalidConfig
   NotConverged(Int32, Double)
 }
 
@@ -78,6 +81,7 @@ pub fn SweepErr::describe(self : SweepErr) -> String {
       "non-finite value at sweep " +
       iter.to_string() +
       " (NaN in load, impedance or voltage)"
+    InvalidConfig => "max_iter must be > 0"
     NotConverged(iter, dv) =>
       "did not converge after " +
       iter.to_string() +
@@ -96,6 +100,9 @@ pub fn sweep(
 ) -> Result[SweepOk, SweepErr] {
   let n = net.node_count()
   let m = net.edge_count()
+  if max_iter <= 0 {
+    return Err(SweepErr::InvalidConfig)
+  }
   // 拓扑必须是同一次 build_topology 的产物：数组长度与支路下标都要落在范围内，
   // 否则下面的 i_branch[parent_edge[u]] 会越界 panic（库不该用 panic 报错）。
   if topo.parent_edge().length() != n || topo.parent().length() != n {

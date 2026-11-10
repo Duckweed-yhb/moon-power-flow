@@ -16,6 +16,12 @@ pub fn branch_admittance(z : @model.Cx) -> @model.Cx {
 }
 
 ///|
+/// 按外部编号查内部下标。
+///
+/// `Network` 只能由 `@model.validate` 构造（`make_raw` 是私有的），端点存在
+/// 这一点在校验阶段已经保证。查不到说明 model 层有 bug——此时**必须立刻失败**：
+/// 早期实现兜底返回 0，等于把一条非法支路静默接到母线 0 上，Ybus 和潮流结果
+/// 会错得毫无痕迹。
 fn bus_index(net : @model.Network, id : Int32) -> Int32 {
   let n = net.bus_count()
   let mut i = 0
@@ -25,8 +31,7 @@ fn bus_index(net : @model.Network, id : Int32) -> Int32 {
     }
     i += 1
   }
-  // 校验已保证端点存在，理论上不会走到这里；兜底返回 0 而非 panic。
-  0
+  abort("ybus: bus id " + id.to_string() + " not found in a validated network")
 }
 
 ///|

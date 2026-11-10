@@ -74,3 +74,23 @@ test "sweep reports non-finite instead of converging on NaN" {
       }
   }
 }
+
+///|
+/// 迭代上限为 0 属于参数错误，不该报成「不收敛」并附一个占位偏差。
+test "sweep rejects non positive iteration limit" {
+  let net = @dist.case_coupled()
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  for bad in [0, -3] {
+    match @dist.sweep(net, topo, 1.0e-9, bad) {
+      Ok(_) => fail("max_iter<=0 must not solve")
+      Err(e) =>
+        match e {
+          @dist.SweepErr::InvalidConfig => ()
+          _ => fail("expected InvalidConfig, got " + e.describe())
+        }
+    }
+  }
+}

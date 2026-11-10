@@ -74,7 +74,11 @@ test "voltage extremes bracket every phase magnitude" {
   }
   match @dist.sweep(net, topo, 1.0e-12, 100) {
     Ok(r) => {
-      let (lo, hi) = @dist.voltage_extremes(r)
+      let extremes = @dist.voltage_extremes(r)
+      let (lo, hi) = match extremes {
+        Some(pair) => pair
+        None => fail("extremes should be Some for a converged solution")
+      }
       assert_true(lo <= 1.0)
       assert_true(hi >= 1.0 - 1.0e-12)
       assert_true(hi - lo > 0.0)

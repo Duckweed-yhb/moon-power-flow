@@ -30,8 +30,11 @@ pub fn SolveOk::voltages(self : SolveOk) -> Array[@model.Cx] {
 
 ///|
 /// 求解失败原因。NotConverged 携带达到的迭代次数与最后一轮最大电压偏差；
-/// NonFinite 表示迭代中出现 NaN（负荷为非有限值，或电压被除到 0）。
+/// NonFinite 表示迭代中出现 NaN（负荷为非有限值，或电压被除到 0）；
+/// NoSlack / InvalidConfig 表示输入本身不可解。
 pub enum SolveErr {
+  NoSlack
+  InvalidConfig
   NonFinite(Int32)
   NotConverged(Int32, Double)
 }
@@ -39,6 +42,8 @@ pub enum SolveErr {
 ///|
 pub fn SolveErr::describe(self : SolveErr) -> String {
   match self {
+    NoSlack => "no slack bus found (network must be validated first)"
+    InvalidConfig => "max_iter must be > 0"
     NonFinite(iter) =>
       "non-finite value at sweep " +
       iter.to_string() +
@@ -60,9 +65,12 @@ pub fn gauss_seidel(
   max_iter : Int32,
 ) -> Result[SolveOk, SolveErr] {
   let n = net.bus_count()
+  if max_iter <= 0 {
+    return Err(InvalidConfig)
+  }
   let slack = match net.slack_index() {
     Some(i) => i
-    None => return Err(NotConverged(0, 1.0))
+    None => return Err(NoSlack)
   }
   let v = Array::makei(n, i => {
     if i == slack {

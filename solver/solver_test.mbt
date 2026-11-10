@@ -142,3 +142,21 @@ test "GS reports non-finite instead of converging on NaN injection" {
       }
   }
 }
+
+///|
+/// 迭代上限为 0：参数错误，不是「不收敛」。
+test "GS rejects non positive iteration limit" {
+  let net = match @cases.case_three_bus() {
+    Ok(n) => n
+    Err(e) => @test.fail("case should validate: " + e.describe())
+  }
+  let y = @ybus.build_ybus(net)
+  match @solver.gauss_seidel(net, y, 1.0e-8, 0) {
+    Ok(_) => @test.fail("max_iter=0 must not solve")
+    Err(e) =>
+      match e {
+        @solver.SolveErr::InvalidConfig => ()
+        _ => @test.fail("expected InvalidConfig, got " + e.describe())
+      }
+  }
+}

@@ -6,10 +6,13 @@
 // 不会误报）；限值由调用方给，库里不写死任何规程值。
 
 ///|
-/// 越限方向。
+/// 越限方向。`NonFinite` 表示该相电压不是有限值（NaN/Inf）——
+/// 这不是"没越限"，是数据本身坏了，必须报出来而不是静默跳过：
+/// `m < vmin` / `m > vmax` 对 NaN 恒为 false，旧实现会把它当成合格。
 pub enum ViolationKind {
   Under
   Over
+  NonFinite
 }
 
 ///|
@@ -17,6 +20,7 @@ pub fn ViolationKind::describe(self : ViolationKind) -> String {
   match self {
     Under => "under"
     Over => "over"
+    NonFinite => "non-finite"
   }
 }
 
@@ -99,7 +103,10 @@ pub fn voltage_violations(
     let mut ph = 0
     while ph < 3 {
       let m = mags[ph]
-      if m < vmin {
+      if m != m || m.abs() > 1.0e308 {
+        // 非有限值单独报一类：NaN 与上下限比较恒为 false，旧实现会把它当合格。
+        out.push({ node_id: id, phase: ph, magnitude: m, kind: NonFinite, })
+      } else if m < vmin {
         out.push({ node_id: id, phase: ph, magnitude: m, kind: Under, })
       } else if m > vmax {
         out.push({ node_id: id, phase: ph, magnitude: m, kind: Over, })
@@ -112,11 +119,16 @@ pub fn voltage_violations(
 }
 
 ///|
-/// 三相电压幅值的全网最值：返回 (最小, 最大)。做报表时省得再扫一遍。
-pub fn voltage_extremes(r : SweepOk) -> (Double, Double) {
+/// 三相电压幅值的全网最值：`Some((最小, 最大))`；没有任何可用电压
+/// （空数组，或存在 NaN 这种非有限值）时返回 `None`。
+///
+/// 不用 (1e9, −1e9) 之类的哨兵值：那种返回值会被下游当成真实电压
+/// 参与报表，错得没有痕迹。返回 `None` 至少让调用方必须显式处理。
+pub fn voltage_extremes(r : SweepOk) -> (Double, Double)? {
   let v = r.voltages()
-  let mut lo = 1.0e9
-  let mut hi = -1.0e9
+  let mut lo = 0.0
+  let mut hi = 0.0
+  let mut seen = false
   for p in v {
     let mags = [
       @model.cx_abs(p.a()),
@@ -124,13 +136,25 @@ pub fn voltage_extremes(r : SweepOk) -> (Double, Double) {
       @model.cx_abs(p.c()),
     ]
     for m in mags {
-      if m < lo {
-        lo = m
+      if m != m || m.abs() > 1.0e308 {
+        return None
       }
-      if m > hi {
+      if !seen {
+        lo = m
         hi = m
+        seen = true
+      } else {
+        if m < lo {
+          lo = m
+        }
+        if m > hi {
+          hi = m
+        }
       }
     }
   }
-  (lo, hi)
+  if !seen {
+    return None
+  }
+  Some((lo, hi))
 }
