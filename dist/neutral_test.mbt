@@ -8,20 +8,20 @@
 
 ///|
 /// 造一个 2 节点网络：母线 2 只挂 a 相负荷。
-fn single_phase_load_net() -> DistNet {
+fn single_phase_load_net() -> @dist.DistNet {
   let z = @model.cx(0.01, 0.02)
-  let z3 = z3_diag(z, z, z)
-  let zero = Phasor::zero()
-  let load = phasor(
+  let z3 = @dist.z3_diag(z, z, z)
+  let zero = @dist.Phasor::zero()
+  let load = @dist.phasor(
     @model.cx(0.12, 0.04),
     @model.cx(0.0, 0.0),
     @model.cx(0.0, 0.0),
   )
-  DistNet::make(
-    [DistNode::make(1, zero), DistNode::make(2, load)],
-    [DistEdge::make(1, 2, z3)],
+  @dist.DistNet::make(
+    [@dist.DistNode::make(1, zero), @dist.DistNode::make(2, load)],
+    [@dist.DistEdge::make(1, 2, z3)],
     1,
-    Phasor::uniform(@model.cx(1.0, 0.0)),
+    @dist.Phasor::uniform(@model.cx(1.0, 0.0)),
   )
 }
 
@@ -124,4 +124,33 @@ test "zero neutral impedance means no displacement" {
   for x in vn {
     assert_true(@model.cx_abs(x) == 0.0)
   }
+}
+
+///|
+/// 拓扑与电流不是这张网的：返回空数组，既不越界，也不假装「不漂」。
+test "neutral voltages reject mismatched topology" {
+  let small = @dist.case_coupled()
+  let big = @dist.case_four_node()
+  let topo_small = match @dist.build_topology(small) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  let r_big = match
+    @dist.sweep(
+      big,
+      match @dist.build_topology(big) {
+        Ok(t) => t
+        Err(e) => fail(e.describe())
+      },
+      1.0e-12,
+      100,
+    ) {
+    Ok(r) => r
+    Err(e) => fail(e.describe())
+  }
+  let vn = @dist.neutral_voltages(big, topo_small, r_big, @model.cx(0.01, 0.0))
+  assert_eq(vn.length(), 0)
+  // phase_to_neutral 拿到空数组也不越界，直接返回空。
+  let vpn = @dist.phase_to_neutral(r_big, vn)
+  assert_eq(vpn.length(), 0)
 }

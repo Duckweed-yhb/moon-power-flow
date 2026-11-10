@@ -20,6 +20,8 @@
 /// 逐节点中性点电压（相对根中性点，标幺）。顺序与 `DistNet::node_at` 一致。
 ///
 /// `z_neutral` 是每条支路的中性导体阻抗（三相共用一个值）。
+/// 返回空数组表示输入对不上（拓扑/电流不是这一网的结果）。返回零数组不行：
+/// 「没有漂移」和「数据无效」是两件事，混在一起会被下游当成正常结果。
 pub fn neutral_voltages(
   net : DistNet,
   topo : Topology,
@@ -29,6 +31,13 @@ pub fn neutral_voltages(
   let n = net.node_count()
   let zero = @model.cx(0.0, 0.0)
   let out : Array[@model.Cx] = []
+  // 拓扑与电流必须来自同一张网：长度对不上就返回空，不越界 panic，
+  // 也不假装「中性点不漂」。
+  if topo.parent().length() != n ||
+    topo.parent_edge().length() != n ||
+    r.branch_currents().length() != net.edge_count() {
+    return out
+  }
   for _ in 0..<n {
     out.push(zero)
   }
@@ -42,12 +51,17 @@ pub fn neutral_voltages(
   let currents = r.branch_currents()
   for u in order {
     if u != root {
+      let pu = parent[u]
       let pe = parent_edge[u]
+      // 防御：拓扑若被外部构造得不完整，宁可跳过这个节点也不越界 panic。
+      if pu < 0 || pe < 0 || pe >= currents.length() {
+        continue
+      }
       let i = currents[pe]
       // 中性电流 = 该支路三相电流之和取反。
       let i_n = @model.cx_neg(@model.cx_add(@model.cx_add(i.a(), i.b()), i.c()))
       let drop = @model.cx_mul(z_neutral, i_n)
-      out[u] = @model.cx_sub(out[parent[u]], drop)
+      out[u] = @model.cx_sub(out[pu], drop)
     }
   }
   out
