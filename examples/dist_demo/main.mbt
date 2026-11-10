@@ -57,6 +57,33 @@ fn main {
         "branch 2->3: a=" + fmt_cx(cur[1].a()) + "  c=" + fmt_cx(cur[1].c()),
       )
       println("branch 2->4: c=" + fmt_cx(cur[2].c()))
+      // 电压越限检查：限值只是示例口径，规程由调用方按自己的标准定。
+      let (vmin, vmax) = (0.95, 1.05)
+      let vs = @dist.voltage_violations(r, net, vmin, vmax)
+      println(
+        "voltage limits [" +
+        vmin.to_string() +
+        ", " +
+        vmax.to_string() +
+        "] pu: " +
+        vs.length().to_string() +
+        " violation(s)",
+      )
+      for v in vs {
+        println("  " + v.describe())
+      }
+      // 收敛轨迹：形状比最后一次偏差有用（振荡 / 单调逼近）。
+      let mut trace_str = ""
+      let mut ti = 0
+      let tr = r.trace()
+      while ti < tr.length() {
+        if ti > 0 {
+          trace_str = trace_str + " > "
+        }
+        trace_str = trace_str + tr[ti].to_string()
+        ti += 1
+      }
+      println("convergence trace: " + trace_str)
       // 功率平衡：根注入 = 负荷需求 + 损耗。残差就是「损耗算错没有」的证据。
       let loss = @dist.total_loss_active(net, r)
       let load = @dist.load_demand_active(net)

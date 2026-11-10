@@ -14,12 +14,14 @@
 // 雅可比矩阵，也不假设三相平衡。
 
 ///|
-/// 求解成功：迭代次数、各母线三相电压、各支路三相电流、最后偏差。
+/// 求解成功：迭代次数、各母线三相电压、各支路三相电流、最后偏差，以及
+/// 每轮的收敛偏差轨迹。
 pub struct SweepOk {
   iter : Int32
   voltages : Array[Phasor]
   branch_currents : Array[Phasor]
   max_dv : Double
+  trace : Array[Double]
 }
 
 ///|
@@ -40,6 +42,15 @@ pub fn SweepOk::branch_currents(self : SweepOk) -> Array[Phasor] {
 ///|
 pub fn SweepOk::max_dv(self : SweepOk) -> Double {
   self.max_dv
+}
+
+///|
+/// 每轮的收敛偏差（长度等于迭代次数，最后一个元素等于 `max_dv`）。
+///
+/// 不收敛时要判断「是振荡还是单调逼近」：只看最后一次偏差没法区分，
+/// 轨迹能看出形状。前推回代在病态网络里通常是前后两轮来回摆。
+pub fn SweepOk::trace(self : SweepOk) -> Array[Double] {
+  self.trace
 }
 
 ///|
@@ -92,6 +103,7 @@ pub fn sweep(
   let children = topo.children()
   let mut iter = 0
   let mut last_dv = 1.0
+  let trace : Array[Double] = []
   while iter < max_iter {
     iter += 1
     // 1. 回代：叶子到根
@@ -120,8 +132,9 @@ pub fn sweep(
       }
     }
     last_dv = max_dv
+    trace.push(max_dv)
     if max_dv < tol {
-      return Ok({ iter, voltages: v, branch_currents: i_branch, max_dv, })
+      return Ok({ iter, voltages: v, branch_currents: i_branch, max_dv, trace, })
     }
   }
   Err(SweepErr::NotConverged(max_iter, last_dv))

@@ -2,6 +2,17 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.1.6] - 2026-11-10
+
+### Added
+
+- `dist/limits.mbt`：电压越限检查。`voltage_violations(r, net, vmin, vmax)` 返回逐（母线, 相）的越限记录（含方向与实测值），限值为闭区间，恰好贴限不算越限；`voltage_extremes(r)` 给全网三相电压幅值的最值。库内不写死任何规程限值。
+- `SweepOk::trace()`：每轮收敛偏差轨迹（长度 = 迭代次数，末项 = `max_dv`）。不收敛时用来看是振荡还是单调逼近——只看最后一次偏差区分不出来。
+- `examples/dist_demo` 打印越限条数与收敛轨迹。
+
+### Changed
+
+- 测试数 39 → 44。
 ## [0.1.5] - 2026-11-10
 
 ### Added
