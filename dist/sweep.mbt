@@ -54,12 +54,17 @@ pub fn SweepOk::trace(self : SweepOk) -> Array[Double] {
 }
 
 ///|
-/// 求解失败：拓扑非法、拓扑与网络不匹配，或达到迭代上限仍未收敛。
+/// 求解失败：拓扑非法、拓扑与网络不匹配、出现非有限值，或达到迭代上限仍未收敛。
 pub enum SweepErr {
   Topology(TopoErr)
   /// 传入的 `Topology` 不是由同一个 `DistNet` 生成的（节点数/支路下标对不上）。
   /// 这类错以前会直接在 `i_branch[parent_edge[u]]` 处以数组越界 panic 掉。
   TopologyMismatch
+  /// 迭代过程中出现 NaN（负荷/阻抗里有非有限值，或电压被除到 0）。
+  ///
+  /// 必须单独报错：NaN 参与比较恒为 false，收敛判据 `dv > max_dv` 会一路
+  /// 保持 `max_dv = 0`，第一轮就被判成「已收敛」，然后带着 NaN 电压返回 Ok。
+  NonFinite(Int32)
   NotConverged(Int32, Double)
 }
 
@@ -69,6 +74,10 @@ pub fn SweepErr::describe(self : SweepErr) -> String {
     Topology(e) => "topology: " + e.describe()
     TopologyMismatch =>
       "topology does not match this network (build_topology on the same net)"
+    NonFinite(iter) =>
+      "non-finite value at sweep " +
+      iter.to_string() +
+      " (NaN in load, impedance or voltage)"
     NotConverged(iter, dv) =>
       "did not converge after " +
       iter.to_string() +
@@ -134,17 +143,26 @@ pub fn sweep(
     }
     // 2. 前推：根到叶子，同时统计收敛偏差
     let mut max_dv = 0.0
+    let mut seen_nan = false
     for u in order {
       if u != root {
         let pe = parent_edge[u]
         let drop = net.edge_at(pe).z().mul(i_branch[pe])
         let v_new = v[parent[u]].sub(drop)
         let dv = v_new.sub(v[u]).max_abs()
+        // NaN 必须先抓：`NaN > max_dv` 恒为 false，否则这一轮的 max_dv 会停在 0，
+        // 下一行就把「全是 NaN」判成收敛。
+        if dv != dv {
+          seen_nan = true
+        }
         if dv > max_dv {
           max_dv = dv
         }
         v[u] = v_new
       }
+    }
+    if seen_nan {
+      return Err(SweepErr::NonFinite(iter))
     }
     last_dv = max_dv
     trace.push(max_dv)

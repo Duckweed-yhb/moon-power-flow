@@ -115,3 +115,30 @@ test "branch flow count matches branch count and active loss is non-negative" {
     k += 1
   }
 }
+
+///|
+/// NaN 注入不许被判成收敛（与 dist 侧同一条理由：`NaN > max_delta` 恒 false）。
+test "GS reports non-finite instead of converging on NaN injection" {
+  let nan = 0.0 / 0.0
+  let buses = [
+    @model.Bus::make_slack(1, "bus1", @model.cx(1.0, 0.0)),
+    @model.Bus::make_pq(2, "bus2", nan, 0.0),
+  ]
+  let branches = [@model.Branch::make(1, 2, @model.cx(0.01, 0.02))]
+  let net = match @model.validate(buses, branches) {
+    Ok(n) => n
+    Err(e) => @test.fail("should validate: " + e.describe())
+  }
+  let y = @ybus.build_ybus(net)
+  match @solver.gauss_seidel(net, y, 1.0e-8, 50) {
+    Ok(ok) =>
+      @test.fail(
+        "NaN injection must not converge, iter=" + ok.iter().to_string(),
+      )
+    Err(e) =>
+      match e {
+        @solver.SolveErr::NonFinite(_) => ()
+        _ => @test.fail("expected NonFinite, got " + e.describe())
+      }
+  }
+}

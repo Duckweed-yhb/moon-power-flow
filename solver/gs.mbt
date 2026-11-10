@@ -29,14 +29,20 @@ pub fn SolveOk::voltages(self : SolveOk) -> Array[@model.Cx] {
 }
 
 ///|
-/// 求解失败原因。NotConverged 携带达到的迭代次数与最后一轮最大电压偏差。
+/// 求解失败原因。NotConverged 携带达到的迭代次数与最后一轮最大电压偏差；
+/// NonFinite 表示迭代中出现 NaN（负荷为非有限值，或电压被除到 0）。
 pub enum SolveErr {
+  NonFinite(Int32)
   NotConverged(Int32, Double)
 }
 
 ///|
 pub fn SolveErr::describe(self : SolveErr) -> String {
   match self {
+    NonFinite(iter) =>
+      "non-finite value at sweep " +
+      iter.to_string() +
+      " (NaN in injection or voltage)"
     NotConverged(iter, delta) =>
       "did not converge after " +
       iter.to_string() +
@@ -70,6 +76,7 @@ pub fn gauss_seidel(
   while iter < max_iter {
     iter += 1
     let mut max_delta = 0.0
+    let mut seen_nan = false
     let mut i = 0
     while i < n {
       if i != slack {
@@ -91,12 +98,20 @@ pub fn gauss_seidel(
         )
         let vi_new = @model.cx_div(numer, ybus[i][i])
         let delta = @model.cx_abs(@model.cx_sub(vi_new, vi_old))
+        // NaN 必须先抓：`NaN > max_delta` 恒为 false，否则本轮 max_delta 停在 0，
+        // 收敛判据会把「全是 NaN」当成收敛，返回 Ok + NaN 电压。
+        if delta != delta {
+          seen_nan = true
+        }
         if delta > max_delta {
           max_delta = delta
         }
         v[i] = vi_new
       }
       i += 1
+    }
+    if seen_nan {
+      return Err(NonFinite(iter))
     }
     last_delta = max_delta
     if max_delta < tol {

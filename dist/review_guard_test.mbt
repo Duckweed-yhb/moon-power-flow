@@ -35,3 +35,42 @@ test "sweep still solves when the topology matches" {
     Err(e) => fail(e.describe())
   }
 }
+
+///|
+/// NaN 不许被当成「已收敛」。
+///
+/// `NaN > max_dv` 恒为 false，所以收敛判据里 max_dv 会停在 0，第一轮就判定
+/// 收敛并返回 Ok + NaN 电压。这不是精度问题，是结果对错问题：调用方拿到的
+/// 是「成功」和一个没法用的电压。
+test "sweep reports non-finite instead of converging on NaN" {
+  let z = @model.cx(0.01, 0.02)
+  let z3 = @dist.z3_diag(z, z, z)
+  let nan = 0.0 / 0.0
+  let bad = @dist.phasor(
+    @model.cx(nan, 0.0),
+    @model.cx(nan, 0.0),
+    @model.cx(nan, 0.0),
+  )
+  let net = @dist.DistNet::make(
+    [
+      @dist.DistNode::make(1, @dist.Phasor::zero()),
+      @dist.DistNode::make(2, bad),
+    ],
+    [@dist.DistEdge::make(1, 2, z3)],
+    1,
+    @dist.Phasor::uniform(@model.cx(1.0, 0.0)),
+  )
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  match @dist.sweep(net, topo, 1.0e-9, 50) {
+    Ok(r) =>
+      fail("NaN load must not converge, got max_dv=" + r.max_dv().to_string())
+    Err(e) =>
+      match e {
+        @dist.SweepErr::NonFinite(_) => ()
+        _ => fail("expected NonFinite, got " + e.describe())
+      }
+  }
+}

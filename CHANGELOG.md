@@ -2,6 +2,9 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+### Fixed
+
+- NaN 不再被当成「已收敛」：`sweep` 与 `solver.gauss_seidel` 的收敛判据都靠 `dv > max`，而 `NaN > x` 恒为 false，于是 NaN 那轮的 max 停在 0、**第一轮就判收敛并返回 Ok + NaN 电压**。现在逐轮检查偏差是否为 NaN，命中即返回新增的 `SweepErr::NonFinite(iter)` / `SolveErr::NonFinite(iter)`。补两条回归测试（NaN 负荷 / NaN 注入）。
 ## [0.1.7] - 2026-11-11
 
 ### Fixed
