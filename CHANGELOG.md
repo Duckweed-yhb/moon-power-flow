@@ -2,6 +2,16 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [Unreleased]
+
+### Added
+
+- 10 节点链式网络测试：验证拓扑与迭代在较长链上正常，电压沿链单调下降。
+
+### Changed
+
+- 测试数 28 → 29。
+
 ## [0.1.3] - 2026-11-10
 
 ### Added

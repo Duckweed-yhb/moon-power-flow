@@ -246,3 +246,49 @@ test "sweep: scrambled ids and non-first root are handled by BFS" {
     Err(e) => fail(e.describe())
   }
 }
+
+///|
+test "sweep: ten-node chain converges with monotonic voltage drop" {
+  let z = @dist.z3_diag(
+    @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
+  )
+  let s = @model.cx(0.01, 0.003)
+  let nodes : Array[@dist.DistNode] = []
+  nodes.push(@dist.DistNode::make(0, @dist.Phasor::zero()))
+  let mut i = 1
+  while i <= 9 {
+    nodes.push(@dist.DistNode::make(i, @dist.Phasor::uniform(s)))
+    i += 1
+  }
+  let edges : Array[@dist.DistEdge] = []
+  let mut k = 0
+  while k < 9 {
+    edges.push(@dist.DistEdge::make(k, k + 1, z))
+    k += 1
+  }
+  let net = @dist.DistNet::make(
+    nodes,
+    edges,
+    0,
+    @dist.Phasor::balanced(1.0, 0.0),
+  )
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  assert_eq(topo.order().length(), 10)
+  match @dist.sweep(net, topo, 0.0000000001, 200) {
+    Ok(r) => {
+      let v = r.voltages()
+      // 链式网络：深度越深电压越低
+      let mut j = 0
+      while j < 9 {
+        assert_true(@model.cx_abs(v[j + 1].a()) < @model.cx_abs(v[j].a()))
+        j += 1
+      }
+    }
+    Err(e) => fail(e.describe())
+  }
+}
