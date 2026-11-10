@@ -2,15 +2,25 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
-## [Unreleased]
+## [0.1.4] - 2026-11-10
 
 ### Added
 
 - 10 节点链式网络测试：验证拓扑与迭代在较长链上正常，电压沿链单调下降。
+- `dist/unbalance.mbt`：对称分量（Fortescue）与三相电压不平衡度。
+  `symmetrical_components(Phasor) -> Seq` 给出零序 / 正序 / 负序，
+  `voltage_unbalance_percent(Phasor)` 按 `|V2|/|V1| × 100%` 给出 VUF，
+  `unbalance_profile(Array[Phasor])` 按母线顺序批量算。
+  正序模长小于 1e-12 p.u. 时返回 0（此时比值没有定义，浮点残差会放大到 1e17 量级）。
+- `examples/dist_demo` 每条母线打印 VUF：根母线 ≈ 1.2e-14%，母线 2/3/4 ≈ 0.076% / 0.119% / 0.075%，
+  让「平衡假设会抹掉什么」在同一张输出里可对比。
+- 6 条单测覆盖：平衡正序（负序为零）、纯负序（正序为零）、单相有压（VUF = 100%）、
+  一相跌落（手算 VUF = 20%）、三相相等（纯零序）、profile 顺序。
 
 ### Changed
 
-- 测试数 28 → 29。
+- 测试数 29 → 35。
+- 测试数 28 → 29：新增 10 节点链式网络测试（见上）。
 - CI 从「只跑 wasm-gc」扩成矩阵：`wasm-gc` / `js` / `native` 三个目标各自 `check --deny-warn` + `build` + `test`，另加一个 job 把 `examples/dist_demo` 与 `examples/demo` 用 native 真跑一遍。求解器不含 C FFI，三目标数值行为一致（浮点末位差异已由容差断言吸收）。
 - README 订正：删掉「js 后端 CI 尚未接入」这条计划项（已接入）；本机验证口径改为「2026-11-10 复跑 native / wasm-gc 29/29，js 因本机没有可用 node 交给 CI」。
 

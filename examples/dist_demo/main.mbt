@@ -32,6 +32,9 @@ fn main {
       let mut i = 0
       while i < v.length() {
         let p = v[i]
+        // 三相不平衡度（对称分量法，|V2|/|V1|）：平衡假设下这一列恒为 0，
+        // 它才是「不平衡配电网」和「平衡配电网」真正的数字差别。
+        let vuf = @dist.voltage_unbalance_percent(p)
         println(
           names[i] +
           ": a=" +
@@ -39,7 +42,10 @@ fn main {
           "  b=" +
           fmt_cx(p.b()) +
           "  c=" +
-          fmt_cx(p.c()),
+          fmt_cx(p.c()) +
+          "  VUF=" +
+          vuf.to_string() +
+          "%",
         )
         i += 1
       }

@@ -12,7 +12,7 @@
 > 不含环网、四线中性线、负荷静特性与 PV 节点。单相侧只做 1 Slack + 若干 PQ。
 > 计划项在「计划中」一节，不写成已实现。
 
-> 已发布：`Duckweed/moon-power-flow@0.1.3`（2026-11-10），`moon add Duckweed/moon-power-flow` 可安装。
+> 已发布：`Duckweed/moon-power-flow@0.1.4`（2026-11-10），`moon add Duckweed/moon-power-flow` 可安装。
 
 ## 快速开始
 
@@ -21,7 +21,7 @@
 
 | 目的 | 命令 |
 |---|---|
-| 安装到其他 MoonBit 项目 | `moon add Duckweed/moon-power-flow@0.1.3` |
+| 安装到其他 MoonBit 项目 | `moon add Duckweed/moon-power-flow@0.1.4` |
 | 静态检查（native，警告即错误） | `moon check --target native --deny-warn` |
 | 运行测试（native） | `moon test --target native` |
 | 静态检查（wasm-gc） | `moon check --target wasm-gc --deny-warn` |
@@ -36,7 +36,7 @@ CI（`.github/workflows/ci.yml`）跑三件事：`moon fmt --check`；`wasm-gc` 
 
 ```text
 moon-power-flow/
-├── dist/       三相不平衡配电网：相量、3x3 阻抗矩阵、辐射状拓扑校验、前推回代
+├── dist/       三相不平衡配电网：相量、3x3 阻抗矩阵、辐射状拓扑校验、前推回代、对称分量与 VUF
 ├── model/      单相平衡模型：母线、支路、网络；一致性校验与结构化错误
 ├── ybus/       单相节点复导纳矩阵 Ybus 组装
 ├── solver/     单相 GS 迭代求解、收敛判据、支路复功率潮流与损耗
@@ -69,6 +69,10 @@ moon-power-flow/
 - 前推回代（`sweep`）：平坦启动、三相耦合电压降、收敛判据、迭代上限；
   不收敛返回 `SweepErr::NotConverged`。
 - 三个内置算例：四节点不平衡、四节点平衡（三相退化检查）、带互阻抗的两节点。
+- 对称分量与三相电压不平衡度（`dist/unbalance.mbt`）：Fortescue 分解出零序 / 正序 / 负序，
+  按 `VUF = |V2|/|V1| × 100%` 给出不平衡度。正序接近零（纯负序、纯零序）时返回 0 而不是
+  inf/NaN——浮点残差会把比值放大到 1e17 量级，那个数字没有工程意义。示例 `dist_demo`
+  每条母线都会打印 VUF。
 
 ### 单相平衡（`model/` + `ybus/` + `solver/`，对照）
 
@@ -79,7 +83,7 @@ moon-power-flow/
 
 ## 已验证（本机实测，2026-11-10 复跑）
 
-- `moon test --target native` / `--target wasm-gc`：**29/29**，两后端一致。
+- `moon test --target native` / `--target wasm-gc`：**35/35**，两后端一致。
   `js` 后端的测试本机跑不了（PATH 里没有可用的 node），交给 CI 验证；
   `moon check --deny-warn --target js` 与 `moon build --target js` 本机干净通过。
 - `moon check --target native --deny-warn`、`--target js --deny-warn`：0 警告。
@@ -87,11 +91,14 @@ moon-power-flow/
   四节点不平衡算例 4 次扫描收敛，`max |dV| ≈ 4.6e-10`；
   母线 2 三相电压约 `0.9974 pu @ -0.16°`、`0.9991 pu @ -120.05°`、`0.9985 pu @ 119.91°`
   ——三相不再相等，正是平衡假设会抹掉的部分。
+- 三相不平衡度（同一次示例输出）：根母线 `VUF ≈ 1.2e-14%`（平衡期望值 0），
+  负荷母线 2/3/4 分别约 `0.0756%` / `0.1187%` / `0.0745%`。四个数都来自对称分量
+  实时计算，没有写死；平衡母线与不平衡母线在同一张输出里就能对比。
 - 独立基准：四节点算例的 24 个电压分量由 `scripts/gen_dist_fixtures.py`
   （Python 独立实现前推回代）算出并写死在 `dist/fixtures_test.mbt`，
   不取自本库输出。
 - 单相侧：三节点算例 GS 8 次扫描收敛，Ybus 期望值由手算给出。
-- 发布：`Duckweed/moon-power-flow@0.1.3` 已于 2026-11-10 上线 mooncakes（Latest 0.1.3，MIT）；本地 2026-11-10 复跑 native / wasm-gc 两后端 `moon test` 均 29/29，三个目标的 `--deny-warn` 严格检查通过。
+- 发布：`Duckweed/moon-power-flow@0.1.4` 已于 2026-11-10 上线 mooncakes（Latest 0.1.3，MIT）；本地 2026-11-10 复跑 native / wasm-gc 两后端 `moon test` 均 35/35，三个目标的 `--deny-warn` 严格检查通过。
 
 ## 计划中（本轮未实现，不计入已交付）
 
