@@ -54,9 +54,12 @@ pub fn SweepOk::trace(self : SweepOk) -> Array[Double] {
 }
 
 ///|
-/// 求解失败：拓扑非法，或达到迭代上限仍未收敛。
+/// 求解失败：拓扑非法、拓扑与网络不匹配，或达到迭代上限仍未收敛。
 pub enum SweepErr {
   Topology(TopoErr)
+  /// 传入的 `Topology` 不是由同一个 `DistNet` 生成的（节点数/支路下标对不上）。
+  /// 这类错以前会直接在 `i_branch[parent_edge[u]]` 处以数组越界 panic 掉。
+  TopologyMismatch
   NotConverged(Int32, Double)
 }
 
@@ -64,6 +67,8 @@ pub enum SweepErr {
 pub fn SweepErr::describe(self : SweepErr) -> String {
   match self {
     Topology(e) => "topology: " + e.describe()
+    TopologyMismatch =>
+      "topology does not match this network (build_topology on the same net)"
     NotConverged(iter, dv) =>
       "did not converge after " +
       iter.to_string() +
@@ -82,6 +87,16 @@ pub fn sweep(
 ) -> Result[SweepOk, SweepErr] {
   let n = net.node_count()
   let m = net.edge_count()
+  // 拓扑必须是同一次 build_topology 的产物：数组长度与支路下标都要落在范围内，
+  // 否则下面的 i_branch[parent_edge[u]] 会越界 panic（库不该用 panic 报错）。
+  if topo.parent_edge().length() != n || topo.parent().length() != n {
+    return Err(SweepErr::TopologyMismatch)
+  }
+  for pe in topo.parent_edge() {
+    if pe >= m {
+      return Err(SweepErr::TopologyMismatch)
+    }
+  }
   let root = match net.find_index(net.root_id()) {
     Some(k) => k
     None => return Err(SweepErr::Topology(RootNotFound))

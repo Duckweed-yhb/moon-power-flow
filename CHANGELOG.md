@@ -2,6 +2,17 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.1.7] - 2026-11-11
+
+### Fixed
+
+- `root_injection_active` 与支路存储方向无关：`i_branch` 的语义是「BFS 父→子」，早期实现只匹配 `from_id == root`，把支路写成子→父的网络会算出注入 0——电压与损耗都正常，只有功率平衡静默失效。现在按「任一端是根」匹配，并补方向无关性回归测试。
+- `sweep` 对错配拓扑不再越界 panic：拓扑数组长度或 `parent_edge` 下标与网络不符时返回新增的 `SweepErr::TopologyMismatch`。库不该用 panic 报错。
+- `voltage_violations` 在电压数组与母线表长度不一致时只比对能对上的部分，不越界。
+
+### Changed
+
+- 测试数 44 → 48。
 ## [0.1.6] - 2026-11-10
 
 ### Added

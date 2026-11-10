@@ -56,15 +56,21 @@ pub fn load_demand_active(net : DistNet) -> Double {
 ///|
 /// 根母线注入的有功功率（标幺）：根出发的所有支路，逐个相加 V_root·conj(I)。
 ///
-/// 与 `load_demand_active + total_loss_active` 构成功率平衡恒等式，
-/// 是检验「损耗算对没有」最硬的一条判据（不依赖任何外部参考数据）。
+/// **与支路的存储方向无关**：`i_branch[k]` 的语义是「从 BFS 父节点流向子节点」
+/// （由 `sweep` 的回代累加决定），不是「从 from_id 流向 to_id」。所以只要支路
+/// 有一端是根，贡献就是 `V_root·conj(i_branch[k])`，不需要按存储方向翻符号。
+/// 早期版本只匹配 `from_id == root`，把支路写成子→父的网络会算出注入 0
+/// ——电压和损耗都对，只有这条守恒关系静默失效。
+///
+/// 与 `load_demand_active + total_loss_active` 构成功率平衡恒等式。
 pub fn root_injection_active(net : DistNet, r : SweepOk) -> Double {
   let root_id = net.root_id()
   let v_root = net.v_root()
   let cur = r.branch_currents()
   let mut sum = 0.0
   for k in 0..<net.edge_count() {
-    if net.edge_at(k).from_id() == root_id {
+    let e = net.edge_at(k)
+    if e.from_id() == root_id || e.to_id() == root_id {
       let i = cur[k]
       let pa = @model.cx_mul(v_root.a(), @model.cx_conj(i.a())).re
       let pb = @model.cx_mul(v_root.b(), @model.cx_conj(i.b())).re

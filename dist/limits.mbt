@@ -70,6 +70,10 @@ pub fn Violation::describe(self : Violation) -> String {
 ///|
 /// 找出所有越限的（母线, 相）。限值为闭区间 `[vmin, vmax]`：
 /// 恰好等于限值不算越限（工程上通常允许贴着限值运行）。
+///
+/// 前提：`r` 与 `net` 来自同一次求解（电压数组与母线表一一对应）。
+/// 两者长度不一致时只比较能对上的部分，不越界 panic——错配的输入属于
+/// 调用方 bug，库的职责是别崩在半路。
 pub fn voltage_violations(
   r : SweepOk,
   net : DistNet,
@@ -78,8 +82,13 @@ pub fn voltage_violations(
 ) -> Array[Violation] {
   let out : Array[Violation] = []
   let v = r.voltages()
+  let pairs = if v.length() < net.node_count() {
+    v.length()
+  } else {
+    net.node_count()
+  }
   let mut i = 0
-  while i < v.length() {
+  while i < pairs {
     let p = v[i]
     let id = net.node_at(i).id()
     let mags = [
