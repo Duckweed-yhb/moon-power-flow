@@ -84,6 +84,30 @@ fn main {
         ti += 1
       }
       println("convergence trace: " + trace_str)
+      // 中性点位移（四线制一阶近似）：给每条支路一根中性线阻抗，
+      // 看负荷端「相对中性点」的相电压怎么变。
+      let zn = @model.cx(0.015, 0.008)
+      let vn = @dist.neutral_voltages(net, topo, r, zn)
+      let vpn = @dist.phase_to_neutral(r, vn)
+      println(
+        "neutral shift (z_n = 0.015+j0.008 pu), phase-to-neutral magnitudes:",
+      )
+      let mut bi = 0
+      while bi < vpn.length() {
+        println(
+          "  " +
+          names[bi] +
+          ": |Vn|=" +
+          @model.cx_abs(vn[bi]).to_string() +
+          "  |Van|=" +
+          @model.cx_abs(vpn[bi].a()).to_string() +
+          "  |Vbn|=" +
+          @model.cx_abs(vpn[bi].b()).to_string() +
+          "  |Vcn|=" +
+          @model.cx_abs(vpn[bi].c()).to_string(),
+        )
+        bi += 1
+      }
       // 功率平衡：根注入 = 负荷需求 + 损耗。残差就是「损耗算错没有」的证据。
       let loss = @dist.total_loss_active(net, r)
       let load = @dist.load_demand_active(net)

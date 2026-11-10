@@ -12,7 +12,7 @@
 > 不含环网、四线中性线、负荷静特性与 PV 节点。单相侧只做 1 Slack + 若干 PQ。
 > 计划项在「计划中」一节，不写成已实现。
 
-> 已发布：`Duckweed/moon-power-flow@0.1.9`（2026-11-10），`moon add Duckweed/moon-power-flow` 可安装。
+> 已发布：`Duckweed/moon-power-flow@0.1.10`（2026-11-10），`moon add Duckweed/moon-power-flow` 可安装。
 
 ## 快速开始
 
@@ -21,7 +21,7 @@
 
 | 目的 | 命令 |
 |---|---|
-| 安装到其他 MoonBit 项目 | `moon add Duckweed/moon-power-flow@0.1.9` |
+| 安装到其他 MoonBit 项目 | `moon add Duckweed/moon-power-flow@0.1.10` |
 | 静态检查（native，警告即错误） | `moon check --target native --deny-warn` |
 | 运行测试（native） | `moon test --target native` |
 | 静态检查（wasm-gc） | `moon check --target wasm-gc --deny-warn` |
@@ -36,7 +36,7 @@ CI（`.github/workflows/ci.yml`）跑三件事：`moon fmt --check`；`wasm-gc` 
 
 ```text
 moon-power-flow/
-├── dist/       三相不平衡配电网：相量、3x3 阻抗矩阵、辐射状拓扑校验、前推回代、对称分量与 VUF、支路损耗、越限检查
+├── dist/       三相不平衡配电网：相量、3x3 阻抗矩阵、辐射状拓扑校验、前推回代、对称分量与 VUF、支路损耗、越限检查、中性点位移
 ├── model/      单相平衡模型：母线、支路、网络；一致性校验与结构化错误
 ├── ybus/       单相节点复导纳矩阵 Ybus 组装
 ├── solver/     单相 GS 迭代求解、收敛判据、支路复功率潮流与损耗
@@ -73,6 +73,7 @@ moon-power-flow/
   按 `VUF = |V2|/|V1| × 100%` 给出不平衡度。正序接近零（纯负序、纯零序）时返回 0 而不是
   inf/NaN——浮点残差会把比值放大到 1e17 量级，那个数字没有工程意义。示例 `dist_demo`
   每条母线都会打印 VUF。
+- 中性点位移（`dist/neutral.mbt`，四线制一阶近似）：中性导体与相导体同拓扑，支路中性电流取三相电流之和的相反数，逐支路中性阻抗由调用方给定。`neutral_voltages` 给逐节点中性点电压，`phase_to_neutral` 给负荷端「相对中性点」的相电压。示例里四节点算例的中性点漂移约 `0.0017–0.0026 p.u.`，a 相相对中性点压到 `0.994–0.996 p.u.`、b 相被抬到 `1.0006–1.0014 p.u.` —— 这是三相不平衡配电网里最容易被忽略的一段。
 - 支路损耗与功率平衡（`dist/loss.mbt`）：逐相 `S_p = (Z3·I)_p · conj(I_p)`，相间互阻抗
   已包含在 `(Z3·I)` 里；`branch_losses` 给每条支路三相损耗，`total_loss_active` 给全网有功
   损耗，`load_demand_active` / `root_injection_active` 供功率平衡校验。验收判据不是参考数据，
@@ -88,7 +89,7 @@ moon-power-flow/
 
 ## 已验证（本机实测，2026-11-10 复跑）
 
-- `moon test --target native` / `--target wasm-gc`：**52/52**，两后端一致。
+- `moon test --target native` / `--target wasm-gc`：**56/56**，两后端一致。
   `js` 后端的测试本机跑不了（PATH 里没有可用的 node），交给 CI 验证；
   `moon check --deny-warn --target js` 与 `moon build --target js` 本机干净通过。
 - `moon check --target native --deny-warn`、`--target js --deny-warn`：0 警告。
@@ -103,7 +104,7 @@ moon-power-flow/
   （Python 独立实现前推回代）算出并写死在 `dist/fixtures_test.mbt`，
   不取自本库输出。
 - 单相侧：三节点算例 GS 8 次扫描收敛，Ybus 期望值由手算给出。
-- 发布：`Duckweed/moon-power-flow@0.1.9` 已于 2026-11-10 上线 mooncakes（Latest 0.1.9，MIT）；本地 2026-11-10 复跑 native / wasm-gc 两后端 `moon test` 均 52/52，三个目标的 `--deny-warn` 严格检查通过。
+- 发布：`Duckweed/moon-power-flow@0.1.10` 已于 2026-11-10 上线 mooncakes（Latest 0.1.10，MIT）；本地 2026-11-10 复跑 native / wasm-gc 两后端 `moon test` 均 56/56，三个目标的 `--deny-warn` 严格检查通过。
 
 ## 计划中（本轮未实现，不计入已交付）
 
@@ -132,6 +133,7 @@ moon-power-flow/
 ## 已知限制与适用边界
 
 - 三相侧只适用于辐射状树形网络；环网、弱环网需要另行处理，当前直接拒绝。
+- 中性点位移是**后处理近似**：中性阻抗按逐支路均匀给定，不考虑负荷的恒功率再分配，也不做多条并联中性导体的分流。它回答「会不会漂、漂多少」，不替代完整的四线制潮流。
 - 只建模三相三线、恒功率负荷；没有中性线，因此不覆盖单相接地导致的中性点位移。
 - 未做稀疏存储，节点数增大后采用稠密矩阵，不面向大规模系统。
 - 单相侧只适用于参数温和的小网络；高阻比或接近病态时可能不收敛，返回结构化失败。

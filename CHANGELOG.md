@@ -2,9 +2,41 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [Unreleased]
+
+### Added
+
+- `dist/neutral.mbt`：中性点位移（四线制一阶近似）。中性导体与相导体同拓扑，支路中性电流取三相电流之和的相反数，逐支路中性阻抗由调用方给定；`neutral_voltages` 给逐节点中性点电压，`phase_to_neutral` 给负荷端「相对中性点」的相电压。补 4 条测试（平衡不漂、单相负荷的位移方向与解析式、定义式逐相比对、零中性阻抗不漂）。
+
+### Changed
+
+- 测试数 52 → 56。
+- `examples/dist_demo` 打印中性点位移与相对中性点的三相电压幅值。
+
+## [0.1.9] - 2026-11-10
+
+### Fixed
+
+- `ybus/bus_index` 查不到端点时不再静默返回 0：`Network` 只能由 `model.validate` 构造，端点必然存在；查不到说明 model 层有 bug，此时立刻失败比把非法支路静默接到母线 0 上好。
+- `sweep` / `gauss_seidel` 的 `max_iter <= 0` 现在返回新增的 `InvalidConfig`，此前返回 `NotConverged(0, 1.0)`，那个 1.0 是初始化占位值、不是真实偏差。
+- `gauss_seidel` 缺 Slack 时返回 `NoSlack`（此前借用 `NotConverged(0, 1.0)`）。
+- `voltage_violations` 对非有限电压单独报 `ViolationKind::NonFinite`：NaN 与上下限比较恒为 false，旧实现会把它当成合格电压。
+- `voltage_extremes` 改为返回 `(Double, Double)?`：空数组或存在非有限值时返回 `None`，不再返回 `(1e9, -1e9)` 这种会被下游当真值使用的哨兵。
+
+### Changed
+
+- 测试数 50 → 52。
+
+## [0.1.8] - 2026-11-10
+
 ### Fixed
 
 - NaN 不再被当成「已收敛」：`sweep` 与 `solver.gauss_seidel` 的收敛判据都靠 `dv > max`，而 `NaN > x` 恒为 false，于是 NaN 那轮的 max 停在 0、**第一轮就判收敛并返回 Ok + NaN 电压**。现在逐轮检查偏差是否为 NaN，命中即返回新增的 `SweepErr::NonFinite(iter)` / `SolveErr::NonFinite(iter)`。补两条回归测试（NaN 负荷 / NaN 注入）。
+
+### Changed
+
+- 测试数 48 → 50。
+
 ## [0.1.7] - 2026-11-11
 
 ### Fixed
