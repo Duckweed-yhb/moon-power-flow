@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+## [0.1.12] - 2026-11-11
+
+### Added
+
+- `dist/zip.mbt`：负荷静特性 ZIP。`S(V) = S0·(α + β·|V| + γ·|V|²)`，逐相按各自电压模长缩放；`Zip::new` 校验非负且和为 1；`sweep_zip` 与 `sweep` 并存（α=1 时同解）；`load_demand_active_zip` 统计按最终电压缩放后的实际取用，功率平衡恒等式照旧成立。
+- 5 条测试：α=1 与旧 sweep 同解、γ=1 功率平衡、混合系数平衡、非法系数拒绝、缩放系数在 |V|=1 处为 1。
+
+### Changed
+
+- 测试数 57 → 62。
+- `sweep` 内部改为带可选 ZIP 参数的主体函数，对外签名不变。
+
 ### Added
 
 - `scripts/check-release.ps1` + CI 的 `release-meta` job：校验 `moon.mod` 的 version、CHANGELOG 最新版本段标题、README 里所有 `<模块>@x.y.z` 与 `Latest x.y.z` 三处一致，并拒绝重复的版本段。发布时漏改任何一处都不会报错，只会让文档慢慢变成谎话；现在它们对不上就红。

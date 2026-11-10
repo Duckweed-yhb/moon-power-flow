@@ -91,10 +91,35 @@ pub fn SweepErr::describe(self : SweepErr) -> String {
 }
 
 ///|
-/// 前推回代求解。`topo` 必须由同一 `net` 通过 `build_topology` 得到。
+/// 前推回代求解（恒功率负荷）。`topo` 必须由同一 `net` 通过 `build_topology` 得到。
 pub fn sweep(
   net : DistNet,
   topo : Topology,
+  tol : Double,
+  max_iter : Int32,
+) -> Result[SweepOk, SweepErr] {
+  sweep_with_zip(net, topo, None, tol, max_iter)
+}
+
+///|
+/// 前推回代求解（ZIP 负荷静特性）。`zip` 按母线电压模长缩放负荷功率，
+/// 其余与 `sweep` 完全一致；`Zip::constant_power()` 时与 `sweep` 同解。
+pub fn sweep_zip(
+  net : DistNet,
+  topo : Topology,
+  zip : Zip,
+  tol : Double,
+  max_iter : Int32,
+) -> Result[SweepOk, SweepErr] {
+  sweep_with_zip(net, topo, Some(zip), tol, max_iter)
+}
+
+///|
+/// 求解主体：`zip` 为 None 表示恒功率负荷（旧行为）。
+fn sweep_with_zip(
+  net : DistNet,
+  topo : Topology,
+  zip : Zip?,
   tol : Double,
   max_iter : Int32,
 ) -> Result[SweepOk, SweepErr] {
@@ -140,7 +165,7 @@ pub fn sweep(
     // 1. 回代：叶子到根
     for u in rev {
       if u != root {
-        let i_load = net.node_at(u).s().map_div(v[u]).conj()
+        let i_load = load_current(net.node_at(u).s(), v[u], zip)
         let mut total = i_load
         for ch in children[u] {
           total = total.add(i_branch[parent_edge[ch]])
