@@ -12,11 +12,11 @@
 > 不含环网、四线中性线、负荷静特性与 PV 节点。单相侧只做 1 Slack + 若干 PQ。
 > 计划项在「计划中」一节，不写成已实现。
 
-> 已发布：`Duckweed/moon-power-flow@0.1.3`（2026-11-09），`moon add Duckweed/moon-power-flow` 可安装。
+> 已发布：`Duckweed/moon-power-flow@0.1.3`（2026-11-10），`moon add Duckweed/moon-power-flow` 可安装。
 
 ## 快速开始
 
-本机工具链：moon 0.1.30261012（moonc v0.10.15）。下列命令在仓库根目录执行，
+本机工具链：moon 0.1.20261012（moonc v0.10.15）。下列命令在仓库根目录执行，
 验证时显式指定后端，避免默认目标在本机环境缺预编译产物时产生歧义。
 
 | 目的 | 命令 |
@@ -89,7 +89,7 @@ moon-power-flow/
   （Python 独立实现前推回代）算出并写死在 `dist/fixtures_test.mbt`，
   不取自本库输出。
 - 单相侧：三节点算例 GS 8 次扫描收敛，Ybus 期望值由手算给出。
-- 发布：`Duckweed/moon-power-flow@0.1.3` 已于 2026-11-09 上线 mooncakes（Latest 0.1.3，MIT）；本地复跑 native / wasm-gc / js 三后端 `moon test` 均 29/29，`--deny-warn` 严格检查通过。
+- 发布：`Duckweed/moon-power-flow@0.1.3` 已于 2026-11-10 上线 mooncakes（Latest 0.1.3，MIT）；本地复跑 native / wasm-gc / js 三后端 `moon test` 均 29/29，`--deny-warn` 严格检查通过。
 
 ## 计划中（本轮未实现，不计入已交付）
 
@@ -124,7 +124,7 @@ moon-power-flow/
 - 单相侧只适用于参数温和的小网络；高阻比或接近病态时可能不收敛，返回结构化失败。
 - 复数类型为本库自建的轻量记录，只覆盖求解所需运算，不追求通用数学库完整度。
 
-## 查重状态（2026-11-09 实测）
+## 查重状态（2026-11-10 实测）
 
 - `moon search loadflow`：无模块。
 - `moon search power`：命中 `SupremeHuaji/MoonElec@0.1.0`，电气工程公式库（电路、三相功率、变压器、电机、信号与控制）。它是公式计算集合，不含网络拓扑、Ybus 组装或迭代潮流求解，与本库不重合。
