@@ -29,7 +29,7 @@
 | 三相配电示例（native） | `moon run examples/dist_demo --target native` |
 | 单相平衡示例（native） | `moon run examples/demo --target native` |
 
-CI（`.github/workflows/ci.yml`，工具链钉住 0.1.20261012 与本地一致）跑三件事：`moon fmt --check`；`wasm-gc` / `js` / `native` 三个目标各自的
+CI（`.github/workflows/ci.yml`）跑三件事：`moon fmt --check`；`wasm-gc` / `js` / `native` 三个目标各自的
 `check --deny-warn` + `build` + `test`；以及两个示例的 `moon run --target native`。
 
 ## 包结构
