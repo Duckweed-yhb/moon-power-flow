@@ -1,10 +1,12 @@
-// MoonBit 构建产物
+# MoonBit 构建产物
 _build/
 target/
+# 工具链生成的接口文件（0.1.20261104 起写进包目录）
+*.mbti
 
-// 本地拉取的第三方模块缓存
+# 本地拉取的第三方模块缓存
 .mooncakes/
 
-// 系统与编辑器杂物
+# 系统与编辑器杂物
 .DS_Store
 Thumbs.db
