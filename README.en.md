@@ -14,7 +14,7 @@ Local toolchain: moon 0.1.20261104 (moonc v0.10.20+65efd5b93). Run commands from
 
 | Purpose | Command |
 |---|---|
-| Add to another MoonBit project | `moon add Duckweed/moon-power-flow@0.1.0` |
+| Add to another MoonBit project | `moon add Duckweed/moon-power-flow@0.2.0` |
 | Static check (native, warnings as errors) | `moon check --target native --deny-warn` |
 | Run tests (native) | `moon test --target native` |
 | Static check (wasm-gc) | `moon check --target wasm-gc --deny-warn` |
