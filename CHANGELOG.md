@@ -6,6 +6,14 @@
 
 ### Added
 
+- `dist/zip_test.mbt` 补失败分支：ZIP 路径遇 NaN 负荷同样返回 `NonFinite`、迭代上限过小返回 `NotConverged(1)`、`max_iter=0` 返回 `InvalidConfig`；另断言 α=1 时 `load_demand_active_zip` 与 `load_demand_active` 相等。
+
+### Changed
+
+- 测试数 70 → 73。
+
+### Added
+
 - `model/zip.mbt`：ZIP 负荷系数与缩放规则提到共享的 model 包，三相与单相求解器共用。
 - `solver/gauss_seidel_zip`：单相侧也支持负荷静特性（按节点电压缩放净注入）。α=1 时与 `gauss_seidel` 同解，交通测试逐位比对；恒阻抗负荷在电压低于 1 p.u. 时取用更少，求解出的母线电压高于恒功率情形。
 
