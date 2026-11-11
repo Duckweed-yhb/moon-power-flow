@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-11
+
 ### Added
 
 - `dist/zip_test.mbt` 补失败分支：ZIP 路径遇 NaN 负荷同样返回 `NonFinite`、迭代上限过小返回 `NotConverged(1)`、`max_iter=0` 返回 `InvalidConfig`；另断言 α=1 时 `load_demand_active_zip` 与 `load_demand_active` 相等。
