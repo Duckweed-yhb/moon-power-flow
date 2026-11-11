@@ -10,7 +10,7 @@ A **single-phase balanced Gauss-Seidel (GS) solver** is kept in the same reposit
 
 ## Quick start
 
-Local toolchain: moon 0.1.20261012 (moonc v0.10.15). Run commands from the repository root and pass an explicit target, to avoid ambiguity when the default target lacks a prebuilt local artifact.
+Local toolchain: moon 0.1.20261104 (moonc v0.10.20+65efd5b93). Run commands from the repository root and pass an explicit target, to avoid ambiguity when the default target lacks a prebuilt local artifact.
 
 | Purpose | Command |
 |---|---|
@@ -63,14 +63,14 @@ moon-power-flow/
 - GS iteration, convergence criterion, iteration cap, branch complex power and losses.
 - One three-bus case and a GS demo.
 
-## Verified (local run, 2026-11-07)
+## Verified (local run, 2026-11-11)
 
-- `moon test --target native` / `wasm-gc` / `js`: **25/25**, consistent across the three backends.
-- `moon check --target native --deny-warn` and `--target js --deny-warn`: 0 warnings.
+- `moon test` on wasm / wasm-gc / js / native: **73/73**, consistent across all four backends.
+- `moon check --deny-warn` on all four targets: 0 warnings.
 - Three-phase demo (`moon run examples/dist_demo --target native`; js also run): the four-node unbalanced case converges in 4 sweeps, `max |dV| ≈ 4.6e-10`; bus 2 three-phase voltages are about `0.9974 pu @ -0.16°`, `0.9991 pu @ -120.05°`, `0.9985 pu @ 119.91°` — the three phases no longer match, exactly what a balanced assumption would erase.
 - Independent baseline: the 24 voltage components of the four-node case are computed by `scripts/gen_dist_fixtures.py` (an independent Python backward/forward sweep) and hard-coded in `dist/fixtures_test.mbt`; they are not taken from this library's output.
 - Single-phase side: the three-bus GS case converges in 8 sweeps; expected Ybus values are hand-calculated.
-- Published: `Duckweed/moon-power-flow@0.1.0` reached mooncakes on 2026-11-08 (Latest 0.1.0, MIT); a local re-run on 2026-11-08 reports 25/25 on native / wasm-gc / js with strict `--deny-warn` checks passing.
+- Published: `Duckweed/moon-power-flow@0.2.0` reached mooncakes on 2026-11-10 (Latest 0.2.0, MIT); a local re-run on 2026-11-11 reports 73/73 on all four backends with strict `--deny-warn` checks passing.
 
 ## Planned (not implemented this round, not counted as delivered)
 

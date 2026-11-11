@@ -16,7 +16,7 @@
 
 ## 快速开始
 
-本机工具链：moon 0.1.20261012（moonc v0.10.15）。下列命令在仓库根目录执行，
+本机工具链：moon 0.1.20261104（moonc v0.10.20+65efd5b93）。下列命令在仓库根目录执行，
 验证时显式指定后端，避免默认目标在本机环境缺预编译产物时产生歧义。
 
 | 目的 | 命令 |
@@ -88,12 +88,10 @@ moon-power-flow/
 - GS 迭代、收敛判据、迭代上限、支路复功率与损耗。
 - 一个三节点算例与 GS 示例。
 
-## 已验证（本机实测，2026-11-10 复跑）
+## 已验证（本机实测，2026-11-11 复跑）
 
-- `moon test --target native` / `--target wasm-gc`：**73/73**，两后端一致。
-  `js` 后端的测试本机跑不了（PATH 里没有可用的 node），交给 CI 验证；
-  `moon check --deny-warn --target js` 与 `moon build --target js` 本机干净通过。
-- `moon check --target native --deny-warn`、`--target js --deny-warn`：0 警告。
+- `moon test`：wasm / wasm-gc / js / native 四个后端均 **73/73**，四后端一致。
+- `moon check --deny-warn` 四个后端：0 警告。
 - 三相示例（`moon run examples/dist_demo --target native`，也跑过 js）：
   四节点不平衡算例 4 次扫描收敛，`max |dV| ≈ 4.6e-10`；
   母线 2 三相电压约 `0.9974 pu @ -0.16°`、`0.9991 pu @ -120.05°`、`0.9985 pu @ 119.91°`
@@ -105,7 +103,7 @@ moon-power-flow/
   （Python 独立实现前推回代）算出并写死在 `dist/fixtures_test.mbt`，
   不取自本库输出。
 - 单相侧：三节点算例 GS 8 次扫描收敛，Ybus 期望值由手算给出。
-- 发布：`Duckweed/moon-power-flow@0.2.0` 已于 2026-11-10 上线 mooncakes（Latest 0.2.0，MIT）；本地 2026-11-10 复跑 native / wasm-gc 两后端 `moon test` 均 73/73，三个目标的 `--deny-warn` 严格检查通过。
+- 发布：`Duckweed/moon-power-flow@0.2.0` 已于 2026-11-10 上线 mooncakes（Latest 0.2.0，MIT）；本地 2026-11-11 复跑四个后端 `moon test` 均 73/73，四个目标的 `--deny-warn` 严格检查通过。
 
 ## 计划中（本轮未实现，不计入已交付）
 
