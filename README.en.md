@@ -6,11 +6,11 @@ A pure-MoonBit **three-phase unbalanced distribution-network backward/forward sw
 
 A **single-phase balanced Gauss-Seidel (GS) solver** is kept in the same repository as a comparison baseline, to show what the balanced assumption misses under the same network parameters. The two lines are separate packages with separate tests.
 
-> Scope note: the three-phase release covers only "one slack (substation head) + radial tree topology"; it excludes meshed networks, four-wire neutral, load static characteristics, and PV nodes. The single-phase side models one Slack plus several PQ nodes. Planned items are listed under "Planned" and are not claimed as implemented.
+> Scope note: the three-phase side covers "one slack (substation head) + radial tree topology"; it excludes meshed networks and PV nodes. The neutral wire is a first-order approximation only (a uniform or per-edge neutral conductor impedance gives the neutral-point displacement), not a full three-phase four-wire model; ZIP covers only the three static characteristics (constant power / current / impedance). The single-phase side models one Slack plus several PQ nodes (plus a ZIP variant). Planned items are listed under "Planned" and are not claimed as implemented.
 
 ## Quick start
 
-Local toolchain: moon 0.1.20261104 (moonc v0.10.20+65efd5b93). Run commands from the repository root and pass an explicit target, to avoid ambiguity when the default target lacks a prebuilt local artifact.
+Local toolchain: moon 0.1.20261104 (moonc v0.10.20+65efd5b93). Run commands from the repository root; both the default target and explicit targets work.
 
 | Purpose | Command |
 |---|---|
@@ -74,12 +74,11 @@ moon-power-flow/
 
 ## Planned (not implemented this round, not counted as delivered)
 
-- Four-wire neutral, three-phase four-wire load model, and neutral-point displacement.
+- Full three-phase four-wire model (per-phase loads between phase and neutral, neutral modelled segment by segment); only the first-order neutral-point displacement exists today.
 - Meshed / weakly meshed networks and multi-root (multi-source) distribution systems.
 - Distributed generation (PV-type nodes) and reactive power limits.
 - Newton-Raphson and continuation power flow (voltage collapse margin). The GitHub reference `Zcxssxx/gridflow` (not published to mooncakes) covers balanced positive-sequence NR; this project prioritizes the unbalanced distribution gap.
 - IEEE 123 / 34 node standard cases, sparse storage, and large-scale networks.
-- CI for the js backend (current CI wasm-gc only; local js tests pass but are not yet wired into CI).
 
 ## Validation and failure-path coverage
 
