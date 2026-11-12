@@ -143,9 +143,10 @@ fn sweep_with_zip(
     Some(k) => k
     None => return Err(SweepErr::Topology(RootNotFound))
   }
-  // 只有根节点的父边是 -1，其余必须落在 [0, m)。只查上界挡不住「同规模但
-  // 根下标不同的另一张网的拓扑」——那时 parent_edge[本网根] 是 -1，
-  // 回代里 i_branch[-1] 直接 panic。
+  // 只有根节点的父边是 -1，其余必须落在 [0, m)，而且该父边必须真的连接
+  // 「父节点 → 本节点」。只查下标范围挡不住「同规模、同根、不同树」的另一张网
+  // （根下标相同、父子关系不同），那种情况下回代会沿错误的边累加电流，
+  // 算出来的电压与损耗都是错的，但所有自检照样通过。
   for u in 0..<n {
     let pe = topo.parent_edge()[u]
     if pe == -1 {
@@ -154,6 +155,19 @@ fn sweep_with_zip(
       }
     } else if pe < 0 || pe >= m {
       return Err(SweepErr::TopologyMismatch)
+    } else {
+      let pu = topo.parent()[u]
+      if pu < 0 || pu >= n {
+        return Err(SweepErr::TopologyMismatch)
+      }
+      let e = net.edge_at(pe)
+      let uid = net.node_at(u).id()
+      let pid = net.node_at(pu).id()
+      let connected = (e.from_id() == pid && e.to_id() == uid) ||
+        (e.from_id() == uid && e.to_id() == pid)
+      if !connected {
+        return Err(SweepErr::TopologyMismatch)
+      }
     }
   }
   // 平坦启动：全部母线取根电压。
