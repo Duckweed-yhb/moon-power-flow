@@ -39,7 +39,8 @@ moon-power-flow/
 
 ## Units, base values, and tolerances
 
-- All quantities are per-unit (p.u.); the built-in case uses `S_B = 100 MVA`, and the three-phase side takes 230 V as the base phase voltage (at `S_base = 1.0`, 1.0 p.u. corresponds to 230 V phase voltage).
+- All quantities are per-unit (p.u.). **The two sides do not share a base**: the three-phase `dist` built-in cases use `S_B = 100 kVA` with 230 V base phase voltage (`Z_B = 230²/(100e3/3) ≈ 1.587 Ω`, see the comment in `dist/cases.mbt`), while the single-phase `cases` / `solver` cases use `S_B = 100 MVA`. Cross-side comparison is only meaningful for dimensionless quantities (VUF, power-balance residual); do not compare p.u. numbers across the two sides.
+- The library ships **no Ω→p.u. helper**: compute `Z_B = U_ph² / (S_B / 3)` (three-phase, phase-voltage base) yourself and divide the ohmic value by it. A wrong base does not raise an error — it silently drives voltage drop, losses and VUF toward zero, which is the easiest mistake to make and the hardest to notice here.
 - Impedance `z = r + jx`, admittance `y = 1/z`; injected power convention `S = P + jQ`.
 - Single-phase GS: loads are expressed as negative net injection; nodal current `I_i = conj(S_i) / conj(V_i)`; convergence requires the maximum modulus difference of complex voltages across all PQ nodes in one sweep to stay below threshold.
 - Three-phase sweep: loads are entered with "consumed positive"; backward current `I_load = conj(S_load / V)`, forward `V_to = V_from − Z · I_branch`; convergence criterion is the maximum modulus difference of non-root three-phase complex voltages.

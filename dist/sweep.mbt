@@ -128,19 +128,33 @@ fn sweep_with_zip(
   if max_iter <= 0 {
     return Err(SweepErr::InvalidConfig)
   }
+  // tol 必须是正的有限数：tol=0 时判据 `max_dv < 0` 永远不成立（必报
+  // NotConverged 而实际偏差已是 0），tol=+inf 则第一轮就判收敛、返回一个
+  // 明显没收敛的解。两种都是配置错误，不是计算结果。
+  if !(tol > 0.0) || tol > 1.0e308 {
+    return Err(SweepErr::InvalidConfig)
+  }
   // 拓扑必须是同一次 build_topology 的产物：数组长度与支路下标都要落在范围内，
   // 否则下面的 i_branch[parent_edge[u]] 会越界 panic（库不该用 panic 报错）。
   if topo.parent_edge().length() != n || topo.parent().length() != n {
     return Err(SweepErr::TopologyMismatch)
   }
-  for pe in topo.parent_edge() {
-    if pe >= m {
-      return Err(SweepErr::TopologyMismatch)
-    }
-  }
   let root = match net.find_index(net.root_id()) {
     Some(k) => k
     None => return Err(SweepErr::Topology(RootNotFound))
+  }
+  // 只有根节点的父边是 -1，其余必须落在 [0, m)。只查上界挡不住「同规模但
+  // 根下标不同的另一张网的拓扑」——那时 parent_edge[本网根] 是 -1，
+  // 回代里 i_branch[-1] 直接 panic。
+  for u in 0..<n {
+    let pe = topo.parent_edge()[u]
+    if pe == -1 {
+      if u != root {
+        return Err(SweepErr::TopologyMismatch)
+      }
+    } else if pe < 0 || pe >= m {
+      return Err(SweepErr::TopologyMismatch)
+    }
   }
   // 平坦启动：全部母线取根电压。
   let v_root = net.v_root()

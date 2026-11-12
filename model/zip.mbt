@@ -25,8 +25,16 @@ pub fn Zip::new(
   beta : Double,
   gamma : Double,
 ) -> Result[Zip, String] {
+  // 先挡非有限值：NaN 与任何数比较恒假，`alpha < 0.0` 与 `(sum-1).abs() > 1e-9`
+  // 都会放行，于是构造出一个 alpha=NaN 的合法 Zip，一直到求解器里才炸。
+  if alpha != alpha || beta != beta || gamma != gamma {
+    return Err("ZIP coefficients must be finite")
+  }
   if alpha < 0.0 || beta < 0.0 || gamma < 0.0 {
     return Err("ZIP coefficients must be non-negative")
+  }
+  if alpha > 1.0e308 || beta > 1.0e308 || gamma > 1.0e308 {
+    return Err("ZIP coefficients must be finite")
   }
   let sum = alpha + beta + gamma
   if (sum - 1.0).abs() > 1.0e-9 {

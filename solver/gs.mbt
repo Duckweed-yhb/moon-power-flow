@@ -95,6 +95,11 @@ fn gauss_seidel_with_zip(
   if max_iter <= 0 {
     return Err(InvalidConfig)
   }
+  // tol=0 会让判据 `delta < 0` 永远不成立（必报 NotConverged，而实际已收敛到
+  // 机器精度）；tol=+inf 则第一轮就判收敛。两种都是配置错误。
+  if !(tol > 0.0) || tol > 1.0e308 {
+    return Err(InvalidConfig)
+  }
   let slack = match net.slack_index() {
     Some(i) => i
     None => return Err(NoSlack)

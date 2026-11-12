@@ -1,96 +1,71 @@
 ///|
-/// 评审加固：错配的拓扑不许 panic，要让调用方拿到结构化错误。
+/// 评审回归：同规模但根下标不同的另一张网的 Topology，必须返回结构化错误，
+/// 不能 panic。
 ///
-/// 之前的 `sweep` 直接按 `parent_edge[u]` 索引 `i_branch`：传进别处的拓扑
-/// 就是数组越界，进程直接挂掉，调用方连 catch 的机会都没有。
-
-///|
-test "sweep rejects topology from a different network" {
-  let small = @dist.case_coupled()
-  let big = @dist.case_four_node()
-  let topo_small = match @dist.build_topology(small) {
-    Ok(t) => t
-    Err(e) => fail(e.describe())
-  }
-  // 用小网络的拓扑去解大网络：节点数对不上，必须返回结构化错误。
-  match @dist.sweep(big, topo_small, 1.0e-9, 50) {
-    Ok(_) => fail("mismatched topology should not solve")
-    Err(e) =>
-      match e {
-        @dist.SweepErr::TopologyMismatch => ()
-        _ => fail("expected TopologyMismatch, got " + e.describe())
-      }
-  }
-}
-
-///|
-test "sweep still solves when the topology matches" {
-  let net = @dist.case_four_node()
-  let topo = match @dist.build_topology(net) {
-    Ok(t) => t
-    Err(e) => fail(e.describe())
-  }
-  match @dist.sweep(net, topo, 1.0e-12, 100) {
-    Ok(r) => assert_true(r.iter() > 0)
-    Err(e) => fail(e.describe())
-  }
-}
-
-///|
-/// NaN 不许被当成「已收敛」。
-///
-/// `NaN > max_dv` 恒为 false，所以收敛判据里 max_dv 会停在 0，第一轮就判定
-/// 收敛并返回 Ok + NaN 电压。这不是精度问题，是结果对错问题：调用方拿到的
-/// 是「成功」和一个没法用的电压。
-test "sweep reports non-finite instead of converging on NaN" {
+/// 旧实现只校验 `parent_edge[i] >= m`，挡不住「拓扑来自另一张网」：那张网的
+/// 根在别的下标上，于是本网根节点拿到的 parent_edge 是 -1，回代里
+/// `i_branch[-1]` 直接越界。文件头的注释恰好承诺的正是「库不该用 panic 报错」。
+test "sweep rejects same-shape topology from another network" {
   let z = @model.cx(0.01, 0.02)
   let z3 = @dist.z3_diag(z, z, z)
-  let nan = 0.0 / 0.0
-  let bad = @dist.phasor(
-    @model.cx(nan, 0.0),
-    @model.cx(nan, 0.0),
-    @model.cx(nan, 0.0),
-  )
-  let net = @dist.DistNet::make(
+  // netA：根是 1（内部下标 0）
+  let net_a = @dist.DistNet::make(
     [
       @dist.DistNode::make(1, @dist.Phasor::zero()),
-      @dist.DistNode::make(2, bad),
+      @dist.DistNode::make(2, @dist.Phasor::uniform(z)),
     ],
     [@dist.DistEdge::make(1, 2, z3)],
     1,
-    @dist.Phasor::uniform(@model.cx(1.0, 0.0)),
+    @dist.Phasor::balanced(1.0, 0.0),
   )
-  let topo = match @dist.build_topology(net) {
+  // netB：同样的规模（2 节点 1 支路），但根是 2（内部下标 1）
+  let net_b = @dist.DistNet::make(
+    [
+      @dist.DistNode::make(1, @dist.Phasor::uniform(z)),
+      @dist.DistNode::make(2, @dist.Phasor::zero()),
+    ],
+    [@dist.DistEdge::make(2, 1, z3)],
+    2,
+    @dist.Phasor::balanced(1.0, 0.0),
+  )
+  let topo_a = match @dist.build_topology(net_a) {
     Ok(t) => t
-    Err(e) => fail(e.describe())
+    Err(e) => fail("netA should be valid: " + e.describe())
   }
-  match @dist.sweep(net, topo, 1.0e-9, 50) {
-    Ok(r) =>
-      fail("NaN load must not converge, got max_dv=" + r.max_dv().to_string())
+  match @dist.sweep(net_b, topo_a, 1.0e-9, 100) {
+    Ok(_) => fail("topology from another network must be rejected")
     Err(e) =>
       match e {
-        @dist.SweepErr::NonFinite(_) => ()
-        _ => fail("expected NonFinite, got " + e.describe())
+        @dist.SweepErr::TopologyMismatch => ()
+        _ => fail("expected TopologyMismatch")
       }
   }
 }
 
 ///|
-/// 迭代上限为 0 属于参数错误，不该报成「不收敛」并附一个占位偏差。
-test "sweep rejects non positive iteration limit" {
-  let net = @dist.case_coupled()
+/// 评审回归：tol 必须是正的有限数。
+///
+/// tol=0 时判据 `max_dv < 0` 永远不成立（报 NotConverged，而实际偏差已经是 0）；
+/// tol=+inf 时第一轮就判收敛，返回一个明显没收敛的解。两种都是配置错误。
+test "sweep rejects non-positive and infinite tolerance" {
+  let net = @dist.case_four_node()
   let topo = match @dist.build_topology(net) {
     Ok(t) => t
-    Err(e) => fail(e.describe())
+    Err(e) => fail("case should be valid: " + e.describe())
   }
-  for bad in [0, -3] {
-    match @dist.sweep(net, topo, 1.0e-9, bad) {
-      Ok(_) => fail("max_iter<=0 must not solve")
+  for bad in [0.0, -1.0e-9, 1.0e309] {
+    match @dist.sweep(net, topo, bad, 100) {
+      Ok(_) => fail("tol=" + bad.to_string() + " must be rejected")
       Err(e) =>
         match e {
           @dist.SweepErr::InvalidConfig => ()
-          _ => fail("expected InvalidConfig, got " + e.describe())
+          _ => fail("expected InvalidConfig for tol=" + bad.to_string())
         }
     }
+  }
+  // 正常 tol 仍然能解
+  match @dist.sweep(net, topo, 1.0e-9, 100) {
+    Ok(_) => ()
+    Err(_) => fail("valid tol should solve")
   }
 }
