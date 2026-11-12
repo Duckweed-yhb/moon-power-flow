@@ -50,6 +50,10 @@ jobs:
         run: moon run examples/dist_demo --target native
       - name: Run examples/demo (single-phase GS baseline)
         run: moon run examples/demo --target native
+      # 规模实测：4 → 5000 节点全部收敛。这一步同时是「性能没有明显退化」的
+      # 哨兵——哪天求解器变成 O(n²)，5000 节点这行会先拖慢 CI。
+      - name: Run examples/scale_demo (4 → 5000 nodes)
+        run: moon run examples/scale_demo --target native
 
   release-meta:
     name: release metadata
