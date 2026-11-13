@@ -40,7 +40,7 @@ CI（`.github/workflows/ci.yml`）跑三件事：`moon fmt --check`；`wasm-gc` 
 
 ```text
 moon-power-flow/
-├── dist/       三相不平衡配电网：相量、3x3 阻抗矩阵、辐射状拓扑校验、前推回代（含 ZIP）、对称分量与 VUF、支路损耗、越限检查、中性点位移
+├── dist/       三相不平衡配电网：相量、3x3 阻抗矩阵、辐射状拓扑校验、前推回代（含 ZIP）、对称分量与 VUF、支路损耗、越限检查、中性点位移、变压器支路、OLTC 分接头调压、逐相投切（缺相）
 ├── model/      共享模型：母线、支路、网络、一致性校验、ZIP 负荷系数
 ├── ybus/       单相节点复导纳矩阵 Ybus 组装
 ├── solver/     单相 GS 迭代求解、收敛判据、支路复功率潮流与损耗
@@ -78,7 +78,10 @@ moon-power-flow/
 - BFS 拓扑序、父边、父节点、子节点表；回代用逆序、前推用正序。
 - 前推回代（`sweep`）：平坦启动、三相耦合电压降、收敛判据、迭代上限；
   不收敛返回 `SweepErr::NotConverged`。
-- 三个内置算例：四节点不平衡、四节点平衡（三相退化检查）、带互阻抗的两节点。
+- 六个内置算例：四节点不平衡、四节点平衡（三相退化检查）、带互阻抗的两节点、变压器两节点、缺相支路两节点、编号乱序两节点。
+- 变压器支路（`dist/model.mbt` 的 `TxSpec`）：非额定变比 `k = V_sec/V_pri` + 归算到副边的漏阻抗 3x3。k=1 时模型退化成同阻抗普通线路；前推 `V_sec = k·V_pri − Z_t·I_sec`，原边电流 `I_pri = k·I_sec`，复功率守恒，损耗按副边漏阻抗与副边电流算。不建励磁支路、不建组别相移。
+- OLTC 分接头调压（`dist/oltc.mbt`）：整数档位 `[tap_min, tap_max]`、每档变比步进、目标电压模长 + 死区；状态区分入带 / 升档 / 降档 / 顶上限 / 压下限；`run_oltc` 闭环反复求解、读受控母线 a 相电压、调档并钳限，直到入带、碰档限或用完调档次数。受控支路不是变压器、受控节点不存在都返回结构化 `OltcErr::Control`。
+- 逐相投切 / 缺相支路（`dist/model.mbt` 的 `Switch`）：断开相支路电流置零、下游该相电压为零，其余两相照常供负荷；功率平衡按导通相成立，断开相负荷不计入供电量。
 - 对称分量与三相电压不平衡度（`dist/unbalance.mbt`）：Fortescue 分解出零序 / 正序 / 负序，
   按 `VUF = |V2|/|V1| × 100%` 给出不平衡度。正序接近零（纯负序、纯零序）时返回 0 而不是
   inf/NaN——浮点残差会把比值放大到 1e17 量级，那个数字没有工程意义。示例 `dist_demo`
@@ -98,10 +101,11 @@ moon-power-flow/
 - GS 迭代、收敛判据、迭代上限、支路复功率与损耗。
 - 一个三节点算例与 GS 示例。
 
-## 已验证（本机实测，2026-11-11 复跑）
+## 已验证（本机实测，2026-11-13 复跑）
 
-- `moon test`：wasm / wasm-gc / js / native 四个后端均 **74/74**，四后端一致（本库是纯计算，无 FFI / 无 I/O，四个后端跑的是同一套用例与同一份数值）。
+- `moon test`：wasm / wasm-gc / js / native 四个后端均 **89/89**，四后端一致（本库是纯计算，无 FFI / 无 I/O，四个后端跑的是同一套用例与同一份数值）。
 - `moon check --deny-warn` 四个后端：0 警告。
+- 变压器对照：k=1 与同阻抗普通线路逐位一致；k=1.05 抬高副边电压；漏阻抗越大副边越低；变压器馈线有功平衡成立。OLTC：参数非法被拒、档位—变比映射正确、上下限钳位、闭环调档不使目标更偏离。缺相：断开相电流 / 电压为零，导通相照常，平衡按导通相成立。
 - 三相示例（`moon run examples/dist_demo --target native`，也跑过 js）：
   四节点不平衡算例 4 次扫描收敛，`max |dV| ≈ 4.6e-10`；
   母线 2 三相电压约 `0.9974 pu @ -0.16°`、`0.9991 pu @ -120.05°`、`0.9985 pu @ 119.91°`
@@ -113,7 +117,7 @@ moon-power-flow/
   （Python 独立实现前推回代）算出并写死在 `dist/fixtures_test.mbt`，
   不取自本库输出。
 - 单相侧：三节点算例 GS 8 次扫描收敛，Ybus 期望值由手算给出。
-- 发布：`Duckweed/moon-power-flow@0.2.0` 已于 2026-11-10 上线 mooncakes（Latest 0.2.0，MIT）；本地 2026-11-11 复跑四个后端 `moon test` 均 73/73，四个目标的 `--deny-warn` 严格检查通过。
+- 发布：`Duckweed/moon-power-flow@0.2.0` 已于 2026-11-10 上线 mooncakes（Latest 0.2.0，MIT）；2026-11-11 复跑四个后端 `moon test` 均 73/73 为当时历史记录，本轮 2026-11-13 已按 89/89 复跑。
 
 ## 计划中（本轮未实现，不计入已交付）
 
@@ -138,6 +142,9 @@ moon-power-flow/
 | 三相：有环（边数 ≠ n−1） | `Err(NotRadial)` | `dist/dist_test.mbt` |
 | 三相：图不连通 | `Err(Disconnected(id))` | `dist/dist_test.mbt` |
 | 三相：前推回代不收敛 | `Err(NotConverged(iter, dV))` | `dist/dist_test.mbt` |
+| 三相：变压器变比非正 / 漏阻抗全零 | `Err(String)` | `dist/tx_test.mbt` |
+| 三相：OLTC 档位越界 / 步进或目标非正 / 死区为负 | `Err(String)` | `dist/oltc_test.mbt` |
+| 三相：OLTC 受控支路非变压器 / 节点不存在 | `Err(OltcErr::Control)` | `dist/oltc_test.mbt` |
 
 ## 已知限制与适用边界
 
