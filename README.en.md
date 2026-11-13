@@ -73,7 +73,7 @@ moon-power-flow/
 
 ## Verified (local run, 2026-11-13)
 
-- `moon test` on wasm / wasm-gc / js / native: **89/89**, consistent across all four backends.
+- `moon test` on wasm / wasm-gc / js / native: **91/91**, consistent across all four backends.
 - `moon check --deny-warn` on all four targets: 0 warnings.
 - Transformer comparison: k=1 matches a plain line bit-for-bit; k=1.05 raises secondary voltage; larger leakage lowers it; transformer feeder active-power balance holds. OLTC: invalid config rejected, tap-ratio mapping correct, limits clamped, closed loop does not worsen the target. Open phase: open phase current/voltage zero, closed phases normal, balance on closed phases.
 - Three-phase demo (`moon run examples/dist_demo --target native`; js also run): the four-node unbalanced case converges in 4 sweeps, `max |dV| ≈ 4.6e-10`; bus 2 three-phase voltages are about `0.9974 pu @ -0.16°`, `0.9991 pu @ -120.05°`, `0.9985 pu @ 119.91°` — the three phases no longer match, exactly what a balanced assumption would erase.
