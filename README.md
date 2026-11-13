@@ -15,6 +15,8 @@
 
 > 已发布：`Duckweed/moon-power-flow@0.2.0`（2026-11-10），`moon add Duckweed/moon-power-flow` 可安装。
 
+> 交付说明（申报书 vs 现状、与「明确不做」的偏差、验证证据分级）：[DELIVERY.md](./DELIVERY.md)。
+
 ## 快速开始
 
 本机工具链：moon 0.1.20261104（moonc v0.10.20+65efd5b93）。下列命令在仓库根目录执行，

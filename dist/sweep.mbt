@@ -81,7 +81,8 @@ pub fn SweepErr::describe(self : SweepErr) -> String {
       "non-finite value at sweep " +
       iter.to_string() +
       " (NaN in load, impedance or voltage)"
-    InvalidConfig => "max_iter must be > 0"
+    InvalidConfig =>
+      "invalid config: max_iter must be > 0 and tol must be a positive finite number"
     NotConverged(iter, dv) =>
       "did not converge after " +
       iter.to_string() +

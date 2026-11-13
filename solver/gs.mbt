@@ -43,7 +43,8 @@ pub enum SolveErr {
 pub fn SolveErr::describe(self : SolveErr) -> String {
   match self {
     NoSlack => "no slack bus found (network must be validated first)"
-    InvalidConfig => "max_iter must be > 0"
+    InvalidConfig =>
+      "invalid config: max_iter must be > 0 and tol must be a positive finite number"
     NonFinite(iter) =>
       "non-finite value at sweep " +
       iter.to_string() +

@@ -54,6 +54,9 @@ jobs:
       # 哨兵——哪天求解器变成 O(n²)，5000 节点这行会先拖慢 CI。
       - name: Run examples/scale_demo (4 → 5000 nodes)
         run: moon run examples/scale_demo --target native
+      # 拒绝演示：非法拓扑 / tol / ZIP 系数必须返回结构化错误而不是 panic。
+      - name: Run examples/reject_demo (structured rejections)
+        run: moon run examples/reject_demo --target native
 
   release-meta:
     name: release metadata
