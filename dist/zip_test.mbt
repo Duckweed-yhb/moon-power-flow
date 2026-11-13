@@ -149,6 +149,42 @@ test "sweep_zip reports non-finite on NaN load" {
 }
 
 ///|
+/// Inf 负荷与 NaN 同口径：迭代中经 Inf/Inf 落到 NaN，必须被 NonFinite 拦住，
+/// 不能带着非有限电压返回 Ok。
+test "sweep_zip reports non-finite on infinite load" {
+  let z = @model.cx(0.01, 0.02)
+  let z3 = @dist.z3_diag(z, z, z)
+  let inf = 1.0 / 0.0
+  let bad = @dist.phasor(
+    @model.cx(inf, 0.0),
+    @model.cx(inf, 0.0),
+    @model.cx(inf, 0.0),
+  )
+  let net = @dist.DistNet::make(
+    [
+      @dist.DistNode::make(1, @dist.Phasor::zero()),
+      @dist.DistNode::make(2, bad),
+    ],
+    [@dist.DistEdge::make(1, 2, z3)],
+    1,
+    @dist.Phasor::uniform(@model.cx(1.0, 0.0)),
+  )
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  let zip = @model.Zip::constant_power()
+  match @dist.sweep_zip(net, topo, zip, 1.0e-9, 50) {
+    Ok(_) => fail("infinite load must not converge under ZIP")
+    Err(e) =>
+      match e {
+        @dist.SweepErr::NonFinite(_) => ()
+        _ => fail("expected NonFinite, got " + e.describe())
+      }
+  }
+}
+
+///|
 /// 迭代上限过小：ZIP 路径也要返回 NotConverged，而不是默默返回半成品。
 test "sweep_zip reports non convergence with a tiny iteration budget" {
   let net = @dist.case_four_node()

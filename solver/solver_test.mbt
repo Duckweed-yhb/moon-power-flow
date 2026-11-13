@@ -144,6 +144,34 @@ test "GS reports non-finite instead of converging on NaN injection" {
 }
 
 ///|
+/// Inf 注入同样必须归 NonFinite：`Inf != Inf` 为真（NaN 判据抓不到），
+/// 旧实现会把一路 Inf 带到 NotConverged，错误归类失真。
+test "GS reports non-finite instead of not-converged on infinite injection" {
+  let inf = 1.0 / 0.0
+  let buses = [
+    @model.Bus::make_slack(1, "bus1", @model.cx(1.0, 0.0)),
+    @model.Bus::make_pq(2, "bus2", inf, 0.0),
+  ]
+  let branches = [@model.Branch::make(1, 2, @model.cx(0.01, 0.02))]
+  let net = match @model.validate(buses, branches) {
+    Ok(n) => n
+    Err(e) => @test.fail("should validate: " + e.describe())
+  }
+  let y = @ybus.build_ybus(net)
+  match @solver.gauss_seidel(net, y, 1.0e-8, 50) {
+    Ok(ok) =>
+      @test.fail(
+        "infinite injection must not converge, iter=" + ok.iter().to_string(),
+      )
+    Err(e) =>
+      match e {
+        @solver.SolveErr::NonFinite(_) => ()
+        _ => @test.fail("expected NonFinite, got " + e.describe())
+      }
+  }
+}
+
+///|
 /// 迭代上限为 0：参数错误，不是「不收敛」。
 test "GS rejects non positive iteration limit" {
   let net = match @cases.case_three_bus() {
