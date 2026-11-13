@@ -22,7 +22,7 @@ Local toolchain: moon 0.1.20261104 (moonc v0.10.20+65efd5b93). Run commands from
 | Three-phase distribution demo (native) | `moon run examples/dist_demo --target native` |
 | Single-phase balanced demo (native) | `moon run examples/demo --target native` |
 
-CI (`.github/workflows/ci.yml`) starts with wasm-gc check and test only; it does not claim coverage of every backend.
+CI (`.github/workflows/ci.yml`) runs `moon fmt --check`, a wasm-gc / js / native matrix of `check --deny-warn` + `build` + `test`, plus native example runs; the wasm target is verified locally only.
 
 ## Package layout
 
@@ -59,6 +59,7 @@ moon-power-flow/
 - Transformer branch (`TxSpec`): off-nominal ratio `k = V_sec/V_pri` plus leakage impedance 3x3 referred to the secondary. At k=1 the model degenerates to a plain line with the same impedance; forward `V_sec = k·V_pri − Z_t·I_sec`, primary current `I_pri = k·I_sec` for complex-power conservation; loss uses secondary leakage impedance and secondary current. No magnetizing branch, no vector-group phase shift.
 - OLTC tap regulation (`dist/oltc.mbt`): integer tap `[tap_min, tap_max]`, per-step ratio change, target voltage magnitude plus deadband; states distinguish in-band / raise / lower / upper limit / lower limit; `run_oltc` closes the loop by repeatedly sweeping, reading the controlled bus a-phase voltage, moving and clamping taps until in-band, hitting a limit, or exhausting moves. Non-transformer controlled edge or missing node returns structured `OltcErr::Control`.
 - Per-phase switching / open phase (`Switch`): an open phase carries zero branch current and a dead downstream phase; the other two phases serve loads normally; power balance holds on closed phases only.
+- ZIP static loads (shared `model/zip.mbt`): `S(V) = S0·(α + β·|V| + γ·|V|²)`; the three-phase `sweep_zip` scales each phase by its own voltage magnitude, the single-phase `gauss_seidel_zip` scales net injection by node voltage; with α=1 each side matches the constant-power solver.
 
 ### Single-phase balanced (`model/` + `ybus/` + `solver/`, comparison)
 
@@ -75,7 +76,7 @@ moon-power-flow/
 - Three-phase demo (`moon run examples/dist_demo --target native`; js also run): the four-node unbalanced case converges in 4 sweeps, `max |dV| ≈ 4.6e-10`; bus 2 three-phase voltages are about `0.9974 pu @ -0.16°`, `0.9991 pu @ -120.05°`, `0.9985 pu @ 119.91°` — the three phases no longer match, exactly what a balanced assumption would erase.
 - Independent baseline: the 24 voltage components of the four-node case are computed by `scripts/gen_dist_fixtures.py` (an independent Python backward/forward sweep) and hard-coded in `dist/fixtures_test.mbt`; they are not taken from this library's output.
 - Single-phase side: the three-bus GS case converges in 8 sweeps; expected Ybus values are hand-calculated.
-- Published: `Duckweed/moon-power-flow@0.2.0` reached mooncakes on 2026-11-10 (Latest 0.2.0, MIT); a local re-run on 2026-11-11 reports 73/73 on all four backends with strict `--deny-warn` checks passing.
+- Published: `Duckweed/moon-power-flow@0.2.0` reached mooncakes on 2026-11-10 (Latest 0.2.0, MIT). The 2026-11-11 local 73/73 is a historical record; on 2026-11-13 all four backends were re-run at 89/89 with strict `--deny-warn` checks passing.
 
 ## Planned (not implemented this round, not counted as delivered)
 
@@ -104,7 +105,7 @@ moon-power-flow/
 ## Known limits and scope
 
 - The three-phase side applies only to radial tree networks; meshed and weakly meshed networks need separate handling and are currently rejected.
-- Only three-phase three-wire, constant-power loads are modeled; there is no neutral, so neutral-point displacement from single-phase ground faults is out of scope.
+- The three-phase side is three-wire: branch coupling is a 3×3 phase impedance matrix; the neutral conductor does not enter the power-flow iteration and appears only as a post-processing neutral-point displacement. ZIP static loads (constant power / current / impedance) are included.
 - No sparse storage; dense matrices are used as node count grows, so this is not aimed at large-scale systems.
 - The single-phase side targets small networks with mild parameters; high R/X ratios or near-singular cases may fail to converge and return a structured error.
 - The complex-number type is a lightweight record defined in this library, covering only the operations needed by the solver; it does not aim for a complete general math library.
