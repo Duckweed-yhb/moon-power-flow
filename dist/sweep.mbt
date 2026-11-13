@@ -199,7 +199,10 @@ fn sweep_with_zip(
         for ch in children[u] {
           total = total.add(i_branch[parent_edge[ch]])
         }
-        i_branch[parent_edge[u]] = total
+        // 断开相不参与回路：该相支路电流置零。
+        let pe = parent_edge[u]
+        total = total.apply_switch(net.edge_at(pe).sw())
+        i_branch[pe] = total
       }
     }
     // 2. 前推：根到叶子，同时统计收敛偏差
@@ -208,8 +211,17 @@ fn sweep_with_zip(
     for u in order {
       if u != root {
         let pe = parent_edge[u]
-        let drop = net.edge_at(pe).z().mul(i_branch[pe])
-        let v_new = v[parent[u]].sub(drop)
+        let e = net.edge_at(pe)
+        // 变压器支路：副边电压基准 = 变比 k × 原边电压，漏阻抗归算到副边；
+        // 普通线路：基准就是父节点电压，压降用线路 3x3 阻抗。
+        let tx = e.tx()
+        let (z, base) = if tx.enabled() {
+          (tx.z(), v[parent[u]].scale(tx.ratio()))
+        } else {
+          (e.z(), v[parent[u]])
+        }
+        let drop = z.mul(i_branch[pe])
+        let v_new = base.sub(drop).apply_switch(e.sw())
         let dv = v_new.sub(v[u]).max_abs()
         // NaN 必须先抓：`NaN > max_dv` 恒为 false，否则这一轮的 max_dv 会停在 0，
         // 下一行就把「全是 NaN」判成收敛。

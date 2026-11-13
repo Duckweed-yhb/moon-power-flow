@@ -78,6 +78,39 @@ pub fn Phasor::sub(self : Phasor, other : Phasor) -> Phasor {
 }
 
 ///|
+/// 按逐相投切状态置零：断开的相电流 / 电压取零，合闸相保持原值。
+pub fn Phasor::apply_switch(self : Phasor, sw : Switch) -> Phasor {
+  let zero = @model.cx(0.0, 0.0)
+  {
+    a: if sw.a() {
+      self.a
+    } else {
+      zero
+    },
+    b: if sw.b() {
+      self.b
+    } else {
+      zero
+    },
+    c: if sw.c() {
+      self.c
+    } else {
+      zero
+    },
+  }
+}
+
+///|
+/// 三相同乘一个实标量（变压器变比这类逐相同比例缩放用）。
+pub fn Phasor::scale(self : Phasor, k : Double) -> Phasor {
+  {
+    a: @model.cx_scale(self.a, k),
+    b: @model.cx_scale(self.b, k),
+    c: @model.cx_scale(self.c, k),
+  }
+}
+
+///|
 /// 逐相除以一个复标量（用于 conj(S/V) 之类的逐相运算）。
 pub fn Phasor::map_div(self : Phasor, den : Phasor) -> Phasor {
   {
@@ -184,16 +217,137 @@ pub fn DistNode::s(self : DistNode) -> Phasor {
 }
 
 ///|
-/// 配电支路：from → to，3x3 复阻抗矩阵。
+/// 两绕组变压器支路参数：变比 + 漏阻抗。
+///
+/// 口径（标幺值，与全库一致）：
+/// - `ratio` 为副边 / 原边的非额定变比 k，空载时 `V_sec ≈ k · V_pri`；
+///   k=1 表示额定变比、无变比偏移；
+/// - `z` 为归算到副边（下游侧）的漏阻抗 3x3 矩阵；
+/// - 不建励磁支路、不建相移（DY11 组别相位差不在本轮范围）。
+pub struct TxSpec {
+  ratio : Double
+  z : Z3
+  enabled : Bool
+}
+
+///|
+/// 非变压器支路的占位参数：变比 1、阻抗不参与计算。
+pub fn TxSpec::disabled() -> TxSpec {
+  let zero = @model.cx(0.0, 0.0)
+  { ratio: 1.0, z: z3_diag(zero, zero, zero), enabled: false, }
+}
+
+///|
+/// 构造变压器参数。变比必须是正的有限数；漏阻抗三个自阻抗不能全为零
+/// （全零等于理想变比，没有漏压降，那是纯变比节点而不是变压器支路）。
+pub fn TxSpec::new(ratio : Double, z : Z3) -> Result[TxSpec, String] {
+  if ratio != ratio || ratio <= 0.0 || ratio > 1.0e308 {
+    return Err("transformer ratio must be a positive finite number")
+  }
+  let all_zero = z.aa.re == 0.0 &&
+    z.aa.im == 0.0 &&
+    z.bb.re == 0.0 &&
+    z.bb.im == 0.0 &&
+    z.cc.re == 0.0 &&
+    z.cc.im == 0.0
+  if all_zero {
+    return Err("transformer leakage impedance must not be all zero")
+  }
+  Ok({ ratio, z, enabled: true, })
+}
+
+///|
+pub fn TxSpec::ratio(self : TxSpec) -> Double {
+  self.ratio
+}
+
+///|
+pub fn TxSpec::z(self : TxSpec) -> Z3 {
+  self.z
+}
+
+///|
+pub fn TxSpec::enabled(self : TxSpec) -> Bool {
+  self.enabled
+}
+
+///|
+/// 支路逐相投切状态：`true` 为合闸（导通），`false` 为断开（缺相 / 断线）。
+pub struct Switch {
+  a : Bool
+  b : Bool
+  c : Bool
+}
+
+///|
+/// 三相全合闸（普通线路默认状态）。
+pub fn Switch::closed() -> Switch {
+  { a: true, b: true, c: true, }
+}
+
+///|
+/// 断开指定相（0=a，1=b，2=c），其余保持；返回新状态。
+pub fn Switch::open_phase(self : Switch, phase : Int32) -> Switch {
+  match phase {
+    0 => { a: false, b: self.b, c: self.c, }
+    1 => { a: self.a, b: false, c: self.c, }
+    _ => { a: self.a, b: self.b, c: false, }
+  }
+}
+
+///|
+pub fn Switch::a(self : Switch) -> Bool {
+  self.a
+}
+
+///|
+pub fn Switch::b(self : Switch) -> Bool {
+  self.b
+}
+
+///|
+pub fn Switch::c(self : Switch) -> Bool {
+  self.c
+}
+
+///|
+/// 配电支路：from → to，3x3 复阻抗矩阵；可选挂变压器参数与逐相投切状态。
 pub struct DistEdge {
   from_id : Int32
   to_id : Int32
   z : Z3
+  tx : TxSpec
+  sw : Switch
 }
 
 ///|
+/// 普通线路支路（无变压器、三相全合闸）。
 pub fn DistEdge::make(from_id : Int32, to_id : Int32, z : Z3) -> DistEdge {
-  { from_id, to_id, z, }
+  { from_id, to_id, z, tx: TxSpec::disabled(), sw: Switch::closed(), }
+}
+
+///|
+/// 变压器支路：漏阻抗用 `tx.z`，线路参数 `z` 不参与计算；变比与漏阻抗来自 `tx`。
+pub fn DistEdge::make_tx(
+  from_id : Int32,
+  to_id : Int32,
+  tx : TxSpec,
+) -> DistEdge {
+  let zero = @model.cx(0.0, 0.0)
+  { from_id, to_id, z: z3_diag(zero, zero, zero), tx, sw: Switch::closed(), }
+}
+
+///|
+/// 复制支路并替换变压器变比（OLTC 调档时用，漏阻抗与端点不变）。
+pub fn DistEdge::with_ratio(self : DistEdge, ratio : Double) -> DistEdge {
+  let tx = { ratio, z: self.tx.z(), enabled: true, }
+  { from_id: self.from_id, to_id: self.to_id, z: self.z, tx, sw: self.sw, }
+}
+
+///|
+/// 复制支路并替换逐相投切状态。
+pub fn DistEdge::with_switch(self : DistEdge, sw : Switch) -> DistEdge {
+  { from_id: self.from_id, to_id: self.to_id, z: self.z, tx: self.tx, sw, }
 }
 
 ///|
@@ -209,6 +363,16 @@ pub fn DistEdge::to_id(self : DistEdge) -> Int32 {
 ///|
 pub fn DistEdge::z(self : DistEdge) -> Z3 {
   self.z
+}
+
+///|
+pub fn DistEdge::tx(self : DistEdge) -> TxSpec {
+  self.tx
+}
+
+///|
+pub fn DistEdge::sw(self : DistEdge) -> Switch {
+  self.sw
 }
 
 ///|
@@ -235,6 +399,11 @@ pub fn DistNet::make(
 ///|
 pub fn DistNet::node_count(self : DistNet) -> Int32 {
   self.nodes.length()
+}
+
+///|
+pub fn DistNet::nodes(self : DistNet) -> Array[DistNode] {
+  self.nodes
 }
 
 ///|

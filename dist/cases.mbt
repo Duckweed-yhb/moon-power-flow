@@ -81,6 +81,43 @@ pub fn case_coupled() -> DistNet {
 }
 
 ///|
+/// 带变压器的两节点算例：1 → 2 为一台变比 1.0、漏阻抗 0.02+j0.04 p.u. 的
+/// 变压器，节点 2 挂平衡三相负荷。用来和「同拓扑同负荷的普通线路」对照变比
+/// 与漏阻抗压降的差别。
+pub fn case_with_transformer() -> DistNet {
+  let zt = @model.cx(0.02, 0.04)
+  let z3 = z3_diag(zt, zt, zt)
+  let tx = match TxSpec::new(1.0, z3) {
+    Ok(t) => t
+    Err(_) => TxSpec::disabled()
+  }
+  let s = @model.cx(0.10, 0.03)
+  let nodes = [
+    DistNode::make(1, Phasor::zero()),
+    DistNode::make(2, Phasor::uniform(s)),
+  ]
+  let edges = [DistEdge::make_tx(1, 2, tx)]
+  DistNet::make(nodes, edges, 1, Phasor::balanced(1.0, 0.0))
+}
+
+///|
+/// 带缺相支路的算例：1 → 2 为普通线路，但 b 相断开；节点 2 三相都挂负荷。
+/// 断开相支路电流置零、下游该相电压为零，a/c 两相仍正常供负荷。
+pub fn case_with_open_phase() -> DistNet {
+  let z = @model.cx(0.01, 0.02)
+  let z3 = z3_diag(z, z, z)
+  let s = phasor(
+    @model.cx(0.08, 0.02),
+    @model.cx(0.06, 0.02),
+    @model.cx(0.08, 0.02),
+  )
+  let nodes = [DistNode::make(1, Phasor::zero()), DistNode::make(2, s)]
+  let closed = Switch::closed().open_phase(1)
+  let edges = [DistEdge::make(1, 2, z3).with_switch(closed)]
+  DistNet::make(nodes, edges, 1, Phasor::balanced(1.0, 0.0))
+}
+
+///|
 /// 编号乱序的算例：根是 10，中间节点 7，末端 3，节点表顺序也不是拓扑序。
 /// 用来验证拓扑与求解按 BFS 走，而不是依赖编号或数组顺序。
 pub fn case_scrambled_ids() -> DistNet {

@@ -22,7 +22,9 @@ pub fn branch_losses(net : DistNet, r : SweepOk) -> Array[Phasor] {
   let out : Array[Phasor] = []
   for k in 0..<cur.length() {
     let i = cur[k]
-    let drop = net.edge_at(k).z().mul(i)
+    let e = net.edge_at(k)
+    // 变压器支路的漏阻抗归算在副边，损耗按副边电流与漏阻抗算。
+    let drop = (if e.tx().enabled() { e.tx().z() } else { e.z() }).mul(i)
     out.push(
       phasor(
         @model.cx_mul(drop.a(), @model.cx_conj(i.a())),
@@ -81,7 +83,10 @@ pub fn root_injection_active(net : DistNet, r : SweepOk) -> Double {
   for k in 0..<net.edge_count() {
     let e = net.edge_at(k)
     if e.from_id() == root_id || e.to_id() == root_id {
-      let i = cur[k]
+      // 变压器：副边电流 I_sec，原边电流 I_pri = k · I_sec（k = V_sec/V_pri，
+      // 复功率守恒 S_pri = S_sec）。普通线路 k=1。
+      let ratio = if e.tx().enabled() { e.tx().ratio() } else { 1.0 }
+      let i = cur[k].scale(ratio)
       let pa = @model.cx_mul(v_root.a(), @model.cx_conj(i.a())).re
       let pb = @model.cx_mul(v_root.b(), @model.cx_conj(i.b())).re
       let pc = @model.cx_mul(v_root.c(), @model.cx_conj(i.c())).re
