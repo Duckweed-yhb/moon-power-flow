@@ -40,6 +40,9 @@ pub fn BranchFlow::loss(self : BranchFlow) -> @model.Cx {
 }
 
 ///|
+/// 按外部编号查内部下标。端点存在性由 `model.validate` 规则 3 保证；
+/// 查不到说明 model 层有 bug，与 `ybus.bus_index` 口径一致，直接 abort，
+/// 不回退下标 0 静默接到首条母线。
 fn local_index(net : @model.Network, id : Int32) -> Int32 {
   let n = net.bus_count()
   let mut i = 0
@@ -49,7 +52,7 @@ fn local_index(net : @model.Network, id : Int32) -> Int32 {
     }
     i += 1
   }
-  0
+  abort("flow: bus id " + id.to_string() + " not found in a validated network")
 }
 
 ///|
