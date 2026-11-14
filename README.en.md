@@ -75,14 +75,19 @@ moon-power-flow/
 
 `examples/web_demo` runs `build_topology` + `sweep` and prints one `DATA` JSON line per panel; `docs/demo/index.html` captures those lines and draws bar charts and a line chart. Every voltage, unbalance figure and iteration count comes from the library - there is no second copy of the power-flow equations in JavaScript.
 
-Three panels: per-phase voltage magnitudes and per-bus VUF for the four-node case, the three-phase voltages with an open branch (downstream phase b at 0 pu, VUF 50%), and the transformer tap scan over -4..+4 showing `|V2_a|` from 0.9466 to 1.0469 pu with an iteration table.
+Four panels: per-phase voltage magnitudes and per-bus VUF for the four-node case, the three-phase voltages with an open branch (downstream phase b at 0 pu, VUF 50%), and two parameter sliders on top of the last two.
+
+The sliders read from a precomputed grid: every step is solved at build time and the slider only switches between solved rows, so nothing is re-solved in the browser. The reason matches the choice in moon-foc - the MoonBit JS artifact is one whole IIFE with no exports, and the wasm-gc artifact exports only `_start`, so the page has no callable handle.
+
+- Load scaling 0.5 / 1.0 / 1.5 / 2.0 / 2.5, five steps. Each step replaces the injection of every non-root node through `DistNode::make` plus `Phasor::scale`, rebuilds the `DistNet`, and reruns `build_topology` + `sweep`. At 2.5x, bus 3 phase a drops to 0.9909 pu and VUF rises to 0.2997%, with iteration count going from 4 to 5.
+- Transformer tap -4..+4, nine steps at 1.25% each. Each step rebuilds the network with a new ratio and reports per-bus phase-a voltage, VUF and iteration count; `|V2_a|` runs from 0.9466 to 1.0469 pu, with a nine-row table for all steps.
 
 ```
 pwsh -File scripts/build-demo.ps1      # build the JS artifact and copy it into docs/demo
 python -m http.server 8765             # run from the repo root, then open http://127.0.0.1:8765/docs/demo/
 ```
 
-The artifact sits next to the page and needs no CDN, so opening `docs/demo/index.html` directly also works. The page is static: the cases and tap range are hard-coded in `examples/web_demo/main.mbt`. GitHub Pages hosting needs `docs/` to be set as the publishing source in the repository settings; that step is outside the repo.
+The artifact sits next to the page and needs no CDN, so opening `docs/demo/index.html` directly also works. Grid sizes live in `examples/web_demo/main.mbt`, and changing them means updating the slider range in the page as well. GitHub Pages hosting needs `docs/` to be set as the publishing source in the repository settings; that step is outside the repo.
 
 ## Verified (local run, 2026-11-14)
 

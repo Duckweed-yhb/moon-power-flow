@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>moon-power-flow 浏览器演示 - 配电潮流 / 缺相 / 分接头</title>
+<title>moon-power-flow 浏览器演示 - 配电潮流 / 缺相 / 参数面板</title>
 <style>
   :root {
     --bg: #0d1017;
@@ -45,6 +45,33 @@
   canvas { display: block; width: 100%; height: 240px; }
   canvas.short { height: 200px; }
   .cap { color: var(--muted); font-size: 12px; margin: 6px 2px 4px; }
+  .ctrl {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 8px 10px; margin: 4px 0 10px;
+    background: #11151c; border: 1px solid var(--line); border-radius: 9px;
+  }
+  .ctrl label { color: var(--muted); font-size: 12px; }
+  .ctrl input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    flex: 1 1 240px; min-width: 180px; height: 44px; background: transparent; margin: 0;
+  }
+  .ctrl input[type=range]::-webkit-slider-runnable-track { height: 4px; background: #2b3242; border-radius: 2px; }
+  .ctrl input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 20px; height: 20px; margin-top: -8px; border-radius: 50%;
+    background: var(--cyan); border: 0; cursor: pointer;
+  }
+  .ctrl input[type=range]::-moz-range-track { height: 4px; background: #2b3242; border-radius: 2px; }
+  .ctrl input[type=range]::-moz-range-thumb {
+    width: 20px; height: 20px; border-radius: 50%; background: var(--cyan); border: 0; cursor: pointer;
+  }
+  .ctrl .val { font: 600 14px/1 ui-monospace, Consolas, monospace; color: var(--cyan); min-width: 78px; text-align: right; }
+  .ctrl .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; }
+  .readouts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+  .ro { flex: 1 1 120px; background: #11151c; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  .ro .k { color: var(--muted); font-size: 11.5px; }
+  .ro .v { font: 600 15px/1.35 ui-monospace, Consolas, monospace; color: var(--text); }
+  .ro .u { color: var(--muted); font-size: 11.5px; font-weight: 400; }
   table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12.5px; }
   th, td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--line); }
   th:first-child, td:first-child { text-align: left; color: var(--muted); }
@@ -57,8 +84,12 @@
 <div class="wrap">
   <h1>moon-power-flow 浏览器演示</h1>
   <p class="sub">
-    电压、电流、不平衡度都由 <code>web_demo.js</code>（MoonBit js 后端产物）算出：
-    <code>build_topology</code> + <code>sweep</code> 前推回代，页面只画图。
+    电压、不平衡度、迭代数都由 <code>web_demo.js</code>（MoonBit js 后端产物）算出：
+    <code>build_topology</code> + <code>sweep</code> 前推回代，页面只画图。<br>
+    后两组面板是<strong>预计算网格</strong> - 构建时把每一档都跑完，滑块只切档。原因和 foc 那边一样：
+    MoonBit 的 js 产物是整段 IIFE、没有导出，wasm-gc 产物也只导出 <code>_start</code>，
+    页面拿不到可调用的句柄。负荷倍率档是页面里唯一需要重建网的参数：每档用
+    <code>DistNode::make</code> + <code>Phasor::scale</code> 换掉注入功率再求解。
   </p>
 
   <div class="cards" id="stats"></div>
@@ -99,27 +130,78 @@
   <section>
     <div class="card">
       <div class="hd">
-        <h2>变压器分接头扫描</h2>
-        <span class="note">1 -变压器-> 2，档位 −4..+4，步进 1.25%，看受控母线 |V2_a|</span>
+        <h2>负荷倍率：逐母线电压</h2>
+        <span class="note">四节点算例的注入功率按倍率缩放，每档重建一次网</span>
         <div class="legend">
-          <span style="color:#4fd1c5"><i style="background:#4fd1c5"></i>|V2_a|</span>
+          <span style="color:#4fd1c5"><i style="background:#4fd1c5"></i>a 相电压</span>
         </div>
       </div>
+      <div class="ctrl">
+        <label for="s-load">负荷倍率</label>
+        <input id="s-load" type="range" min="0" max="4" step="1" value="1">
+        <span class="val" id="v-load">1.0×</span>
+        <span class="tag">5 档 · 预计算</span>
+      </div>
+      <div class="readouts" id="r-load"></div>
+      <canvas id="cv-load"></canvas>
+      <p class="cap">倍率越高，下游母线电压越低；4 号母线比 2 号母线多落 0.0025 pu，差别来自它多一段线路。</p>
+    </div>
+    <div class="card">
+      <div class="hd">
+        <h2>负荷倍率：不平衡度</h2>
+        <span class="note">voltage_unbalance_percent，随倍率近似线性上升</span>
+        <div class="legend">
+          <span style="color:#f6ad55"><i style="background:#f6ad55"></i>VUF / %</span>
+        </div>
+      </div>
+      <canvas id="cv-vuf" class="short"></canvas>
+      <p class="cap">不平衡度跟负荷大小成正比：三相注入的功率本来就对称性差，倍率放大后差得更多。</p>
+    </div>
+    <div class="card">
+      <div class="hd">
+        <h2>负荷倍率：最低母线电压</h2>
+        <span class="note">每档取全网最小值，竖线是当前档</span>
+        <div class="legend">
+          <span style="color:#4fd1c5"><i style="background:#4fd1c5"></i>最低电压</span>
+        </div>
+      </div>
+      <canvas id="cv-loadline" class="short"></canvas>
+      <p class="cap">这条线是 5 档全部算完之后拼出来的，滑块移动时只是把竖线挪到对应档位。</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <div class="hd">
+        <h2>变压器分接头：受控母线电压</h2>
+        <span class="note">1 -变压器-> 2，档位 −4..+4，步进 1.25%</span>
+        <div class="legend">
+          <span style="color:#4fd1c5"><i style="background:#4fd1c5"></i>|V2_a| / pu</span>
+        </div>
+      </div>
+      <div class="ctrl">
+        <label for="s-tap">档位</label>
+        <input id="s-tap" type="range" min="-4" max="4" step="1" value="0">
+        <span class="val" id="v-tap">0</span>
+        <span class="tag">9 档 · 预计算</span>
+      </div>
+      <div class="readouts" id="r-tap"></div>
       <canvas id="cv-tap"></canvas>
+      <p class="cap">每档约 1.25% 变比带来约 1.27% 的电压变化；这条对应关系是 OLTC 调压能力的直接证据。</p>
       <table id="tb-tap"></table>
-      <p class="cap">每档约 1.25% 变比带来约 1.27% 的电压变化；档位与电压的对应关系是 OLTC 调压能力的另一半证据。</p>
     </div>
   </section>
 
   <footer>
     数据来源：<code>examples/web_demo</code> 用 <code>moon build --target js</code> 构建，
     产物 <code>web_demo.js</code> 与本页同目录。数字与 README 引用同源，改库必须重新出图：
-    <code>pwsh scripts/build-demo.ps1</code>。
+    <code>pwsh scripts/build-demo.ps1</code>。档数写在 <code>main.mbt</code> 的网格里，
+    改档数要同时改页面的滑块范围。
   </footer>
 </div>
 
 <script>
-window.__pfDemo = { meta: null, four: null, open: null, tap: null };
+window.__pfDemo = { meta: null, four: null, open: null, load: null, tap: null };
 (function () {
   var raw = console.log;
   console.log = function () {
@@ -131,6 +213,7 @@ window.__pfDemo = { meta: null, four: null, open: null, tap: null };
         var obj = JSON.parse(text.slice(5));
         if (obj.panel === "four") window.__pfDemo.four = obj;
         else if (obj.panel === "open") window.__pfDemo.open = obj;
+        else if (obj.panel === "load") window.__pfDemo.load = obj;
         else if (obj.panel === "tap") window.__pfDemo.tap = obj;
       }
     } catch (e) { /* 解析失败不影响其余面板 */ }
@@ -144,12 +227,11 @@ window.__pfDemo = { meta: null, four: null, open: null, tap: null };
   var D = window.__pfDemo;
 
   function fmt(v) {
-    if (!v) return "0";
+    if (v === null || v === undefined) return "-";
     var a = Math.abs(v), s;
     if (a >= 1000) s = v.toFixed(0);
     else if (a >= 100) s = v.toFixed(1);
     else if (a >= 1) s = v.toFixed(2);
-    else if (a >= 0.01) s = v.toFixed(3);
     else s = v.toFixed(4);
     if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
     return s;
@@ -172,7 +254,7 @@ window.__pfDemo = { meta: null, four: null, open: null, tap: null };
     var cv = document.getElementById(id);
     var box = cv.getBoundingClientRect();
     var dpr = window.devicePixelRatio || 1;
-    var w = Math.max(320, box.width), h = box.height;
+    var w = Math.max(320, box.width), h = box.height || 240;
     cv.width = Math.round(w * dpr);
     cv.height = Math.round(h * dpr);
     var ctx = cv.getContext("2d");
@@ -182,7 +264,7 @@ window.__pfDemo = { meta: null, four: null, open: null, tap: null };
   }
 
   function axes(ctx, w, h, cfg) {
-    var L = 56, R = 14, T = 12, B = 34;
+    var L = 68, R = 14, T = 12, B = 44;
     var pw = w - L - R, ph = h - T - B;
     var xs = cfg.xmin, xe = cfg.xmax, ys = cfg.ymin, ye = cfg.ymax;
     function px(x) { return L + (x - xs) / (xe - xs) * pw; }
@@ -202,6 +284,11 @@ window.__pfDemo = { meta: null, four: null, open: null, tap: null };
     ticks(xs, xe, 8).forEach(function (v) {
       var x = px(v);
       ctx.beginPath(); ctx.moveTo(x, T); ctx.lineTo(x, T + ph); ctx.stroke();
+      if (!cfg.hideX) {
+        ctx.fillStyle = "#7d8798";
+        ctx.textAlign = "center";
+        ctx.fillText(fmt(v), x, T + ph + 18);
+      }
     });
 
     ctx.strokeStyle = "#5b6478";
@@ -222,10 +309,11 @@ window.__pfDemo = { meta: null, four: null, open: null, tap: null };
 
   function grouped(id, cfg) {
     var s = setup(id);
+    cfg.hideX = true;
     var g = axes(s.ctx, s.w, s.h, cfg);
     var n = cfg.labels.length, k = cfg.series.length;
     var band = g.pw / n;
-    var barW = Math.min(18, band * 0.8 / k);
+    var barW = Math.min(20, band * 0.8 / k);
     for (var i = 0; i < n; i++) {
       for (var j = 0; j < k; j++) {
         var v = cfg.series[j].values[i];
@@ -238,7 +326,7 @@ window.__pfDemo = { meta: null, four: null, open: null, tap: null };
       s.ctx.fillStyle = "#7d8798";
       s.ctx.font = "11px -apple-system, 'Microsoft YaHei', sans-serif";
       s.ctx.textAlign = "center";
-      s.ctx.fillText(cfg.labels[i], cx, g.T + g.ph + 20);
+      s.ctx.fillText(cfg.labels[i], cx, g.T + g.ph + 18);
     }
   }
 
@@ -257,16 +345,37 @@ window.__pfDemo = { meta: null, four: null, open: null, tap: null };
     s.ctx.restore();
 
     s.ctx.fillStyle = cfg.color;
+    cfg.points.forEach(function (p) {
+      s.ctx.beginPath();
+      s.ctx.arc(g.px(p[0]), g.py(p[1]), 3, 0, Math.PI * 2);
+      s.ctx.fill();
+    });
+
     s.ctx.font = "11px ui-monospace, Consolas, monospace";
-    s.ctx.textAlign = "center";
     cfg.points.forEach(function (p, i) {
       var x = Math.min(Math.max(g.px(p[0]), g.L + 16), g.L + g.pw - 16);
       var y = g.py(p[1]);
-      s.ctx.beginPath();
-      s.ctx.arc(g.px(p[0]), y, 3, 0, Math.PI * 2);
-      s.ctx.fill();
+      s.ctx.textAlign = "center";
       s.ctx.fillText(fmt(p[1]), x, i % 2 === 0 ? y - 9 : y + 17);
     });
+
+    if (cfg.marker !== undefined) {
+      var mx = g.px(cfg.marker);
+      s.ctx.save();
+      s.ctx.strokeStyle = "#f6ad55";
+      s.ctx.setLineDash([6, 4]);
+      s.ctx.beginPath();
+      s.ctx.moveTo(mx, g.T);
+      s.ctx.lineTo(mx, g.T + g.ph);
+      s.ctx.stroke();
+      s.ctx.restore();
+      if (cfg.markerLabel) {
+        s.ctx.fillStyle = "#f6ad55";
+        s.ctx.font = "11px -apple-system, 'Microsoft YaHei', sans-serif";
+        s.ctx.textAlign = mx > g.L + g.pw * 0.7 ? "right" : "left";
+        s.ctx.fillText(cfg.markerLabel, mx + (mx > g.L + g.pw * 0.7 ? -6 : 6), g.T + 14);
+      }
+    }
   }
 
   function table(id, head, rows) {
@@ -278,12 +387,24 @@ window.__pfDemo = { meta: null, four: null, open: null, tap: null };
     t.innerHTML = html;
   }
 
+  function ro(host, items) {
+    var el = document.getElementById(host);
+    el.innerHTML = "";
+    items.forEach(function (it) {
+      var d = document.createElement("div");
+      d.className = "ro";
+      d.innerHTML = '<div class="k">' + it.k + '</div><div class="v">' + it.v +
+        (it.u ? ' <span class="u">' + it.u + "</span>" : "") + "</div>";
+      el.appendChild(d);
+    });
+  }
+
   var m = D.meta || {};
   var stats = [
-    ["求解容差", m.tol === undefined ? "-" : "1e-9", ""],
-    ["最大迭代", m.max_iter === undefined ? "-" : m.max_iter, "次"],
-    ["四节点迭代", D.four ? D.four.iter : "-", "次"],
-    ["缺相算例迭代", D.open ? D.open.iter : "-", "次"]
+    ["求解容差", "1e-9", ""],
+    ["最大迭代", m.max_iter === undefined ? "-" : String(m.max_iter), "次"],
+    ["负荷网格", m.grid_load === undefined ? "-" : String(m.grid_load), "档"],
+    ["分接头网格", m.grid_tap === undefined ? "-" : String(m.grid_tap), "档"]
   ];
   var host = document.getElementById("stats");
   stats.forEach(function (s) {
@@ -337,19 +458,82 @@ window.__pfDemo = { meta: null, four: null, open: null, tap: null };
       fmt(D.open.vuf[1]) + "%；a、c 两相仍为 " + fmt(D.open.va[1]) + " pu。";
   }
 
-  if (D.tap) {
-    var pts = D.tap.tap.map(function (t, i) { return [t, D.tap.v2[i]]; });
-    line("cv-tap", {
-      xmin: -4, xmax: 4, ymin: 0.93, ymax: 1.06,
-      ylabel: "|V2_a| / pu",
-      color: "#4fd1c5",
-      points: pts
-    });
-    table("tb-tap", ["档位", "变比 k", "|V2_a| / pu", "迭代"],
-      D.tap.tap.map(function (t, i) {
-        return [t > 0 ? "+" + t : String(t), D.tap.ratio[i].toFixed(4),
-                D.tap.v2[i].toFixed(4), String(D.tap.iter[i])];
-      }));
+  /* 负荷倍率：5 档 */
+  var ld = D.load;
+  if (ld) {
+    var loadInput = document.getElementById("s-load");
+    var loadIdx = function () { return parseInt(loadInput.value, 10); };
+    function drawLoad() {
+      var i = loadIdx();
+      var va = ld.va[i], vuf = ld.vuf[i];
+      document.getElementById("v-load").textContent = fmt(ld.k[i]) + "×";
+      var minV = Math.min.apply(null, va);
+      var maxVuf = Math.max.apply(null, vuf);
+      ro("r-load", [
+        { k: "倍率", v: fmt(ld.k[i]) + "×", u: "" },
+        { k: "最低电压", v: fmt(minV), u: "pu" },
+        { k: "最大 VUF", v: fmt(maxVuf), u: "%" },
+        { k: "迭代", v: fmt(ld.iter[i]), u: "次" }
+      ]);
+      grouped("cv-load", {
+        xmin: 0, xmax: 1, ymin: 0.984, ymax: 1.002,
+        ylabel: "a 相电压 / pu",
+        labels: labelsOf(va.length),
+        series: [{ color: colors.a, values: va }]
+      });
+      grouped("cv-vuf", {
+        xmin: 0, xmax: 1, ymin: 0, ymax: 0.32,
+        ylabel: "VUF / %",
+        labels: labelsOf(vuf.length),
+        series: [{ color: "#f6ad55", values: vuf }]
+      });
+      line("cv-loadline", {
+        xmin: 0.4, xmax: 2.6, ymin: 0.988, ymax: 1.0,
+        ylabel: "最低电压 / pu",
+        color: "#4fd1c5",
+        points: ld.k.map(function (k, j) {
+          return [k, Math.min.apply(null, ld.va[j])];
+        }),
+        marker: ld.k[i],
+        markerLabel: fmt(ld.k[i]) + "×"
+      });
+    }
+    loadInput.addEventListener("input", drawLoad);
+    drawLoad();
+  }
+
+  /* 分接头：9 档 */
+  var tp = D.tap;
+  if (tp) {
+    var tapInput = document.getElementById("s-tap");
+    function drawTap() {
+      var t = parseInt(tapInput.value, 10);
+      var i = tp.tap.indexOf(t);
+      if (i < 0) i = 0;
+      document.getElementById("v-tap").textContent = (t > 0 ? "+" + t : String(t));
+      var va = tp.va[i];
+      ro("r-tap", [
+        { k: "档位", v: (t > 0 ? "+" + t : String(t)), u: "" },
+        { k: "变比 k", v: fmt(tp.ratio[i]), u: "" },
+        { k: "|V2_a|", v: fmt(va[1]), u: "pu" },
+        { k: "迭代", v: fmt(tp.iter[i]), u: "次" }
+      ]);
+      line("cv-tap", {
+        xmin: -4.6, xmax: 4.6, ymin: 0.93, ymax: 1.06,
+        ylabel: "|V2_a| / pu",
+        color: "#4fd1c5",
+        points: tp.tap.map(function (tt, j) { return [tt, tp.va[j][1]]; }),
+        marker: t,
+        markerLabel: "当前档"
+      });
+      table("tb-tap", ["档位", "变比 k", "|V2_a| / pu", "VUF / %", "迭代"],
+        tp.tap.map(function (tt, j) {
+          return [tt > 0 ? "+" + tt : String(tt), tp.ratio[j].toFixed(4),
+                  tp.va[j][1].toFixed(4), tp.vuf[j][1].toFixed(4), String(tp.iter[j])];
+        }));
+    }
+    tapInput.addEventListener("input", drawTap);
+    drawTap();
   }
 })();
 </script>

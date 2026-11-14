@@ -105,15 +105,19 @@ moon-power-flow/
 
 `examples/web_demo` 走 `build_topology` + `sweep`，把每个面板的数组打印成 `DATA` 开头的 JSON 行，`docs/demo/index.html` 截获后画柱状图与折线图。页面里的电压、不平衡度、迭代次数都由库函数算出，JS 里没有第二份潮流公式。
 
-三个面板：四节点算例逐相电压幅值与逐母线 VUF、缺相支路下的三相电压（下游 b 相 0 pu、VUF 50%）、变压器分接头 −4..+4 扫描的 `|V2_a|`（0.9466 → 1.0469 pu，附每档迭代次数表）。
+四个面板：四节点算例逐相电压幅值与逐母线 VUF、缺相支路下的三相电压（下游 b 相 0 pu、VUF 50%），后两个配参数滑块。
+
+参数面板走的是预计算网格：构建时把每一档都跑完，滑块只切档，不在浏览器里实时求解。这和 foc 那边的取舍同源 - MoonBit 的 js 产物是整段 IIFE、没有导出，wasm-gc 产物也只导出 `_start`，页面拿不到可调用的句柄。
+
+- 负荷倍率 0.5 / 1.0 / 1.5 / 2.0 / 2.5，5 档。每档用 `DistNode::make` + `Phasor::scale` 换掉非根节点的注入功率，重建 `DistNet` 后重跑 `build_topology` + `sweep`。倍率 2.5 时 3 号母线 a 相掉到 0.9909 pu，VUF 升到 0.2997%，迭代数从 4 涨到 5。
+- 变压器分接头 −4..+4，9 档，步进 1.25%。每档换一个变比重建网，给出各母线 a 相电压、VUF 与迭代数，`|V2_a|` 从 0.9466 走到 1.0469 pu，另附一张 9 行全档表。
 
 ```
 pwsh -File scripts/build-demo.ps1      # 构建 js 产物并复制到 docs/demo
 python -m http.server 8765             # 仓库根目录执行，然后打开 http://127.0.0.1:8765/docs/demo/
 ```
 
-产物与页面同目录且不依赖 CDN，直接双击 `docs/demo/index.html` 也能看。页面是静态的：算例与档位范围写死在 `examples/web_demo/main.mbt` 里；GitHub Pages 托管需要在仓库设置里把 `docs/` 设为发布源，这一步不在仓库内。
-
+产物与页面同目录且不依赖 CDN，直接双击 `docs/demo/index.html` 也能看。档数写在 `examples/web_demo/main.mbt` 的网格里，改档数要同时改页面的滑块范围。GitHub Pages 托管需要在仓库设置里把 `docs/` 设为发布源，这一步不在仓库内。
 ## 已验证（本机实测，2026-11-14 复跑）
 
 - `moon test`：wasm / wasm-gc / js / native 四个后端均 **95/95**，四后端一致（本库是纯计算，无 FFI / 无 I/O，四个后端跑的是同一套用例与同一份数值）。
