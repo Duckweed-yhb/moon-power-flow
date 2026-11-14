@@ -187,4 +187,56 @@ fn main {
     @model.cx_abs(run.result().voltages()[3].a()).to_string() +
     " pu",
   )
+  // 负荷静特性：同一个重载网络（1 -> 2 -> 3，每节点 0.30+j0.10 pu），
+  // 三种 ZIP 构成下末端电压不同。恒阻抗在电压跌落时少取功率，电压不会一路塌；
+  // 恒功率最硬，实际取用的有功也不随电压下降。
+  println("")
+  println("=== 负荷静特性（重载三节点链，bus3 为末端）===")
+  let z = @model.cx(0.02, 0.04)
+  let s = @model.cx(0.30, 0.10)
+  let heavy = @dist.DistNet::make(
+    [
+      @dist.DistNode::make(1, @dist.Phasor::zero()),
+      @dist.DistNode::make(2, @dist.Phasor::uniform(s)),
+      @dist.DistNode::make(3, @dist.Phasor::uniform(s)),
+    ],
+    [
+      @dist.DistEdge::make(1, 2, @dist.z3_diag(z, z, z)),
+      @dist.DistEdge::make(2, 3, @dist.z3_diag(z, z, z)),
+    ],
+    1,
+    @dist.Phasor::balanced(1.0, 0.0),
+  )
+  let heavy_topo = match @dist.build_topology(heavy) {
+    Ok(t) => t
+    Err(e) => {
+      println("heavy topology error: " + e.describe())
+      return
+    }
+  }
+  let cases : Array[(String, @model.Zip)] = [
+    ("恒功率 α=1", @model.Zip::new(1.0, 0.0, 0.0).unwrap()),
+    ("恒电流 β=1", @model.Zip::new(0.0, 1.0, 0.0).unwrap()),
+    ("恒阻抗 γ=1", @model.Zip::new(0.0, 0.0, 1.0).unwrap()),
+    ("5:3:2 混合", @model.Zip::new(0.5, 0.3, 0.2).unwrap()),
+  ]
+  for item in cases {
+    let (label, zip) = item
+    match @dist.sweep_zip(heavy, heavy_topo, zip, 0.000000001, 100) {
+      Ok(r) => {
+        let demand = @dist.load_demand_active_zip(heavy, r, zip)
+        println(
+          label +
+          ": iter=" +
+          r.iter().to_string() +
+          ", |V3_a|=" +
+          @model.cx_abs(r.voltages()[2].a()).to_string() +
+          " pu, 实际有功需求=" +
+          demand.to_string() +
+          " pu",
+        )
+      }
+      Err(e) => println(label + ": " + e.describe())
+    }
+  }
 }
