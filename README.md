@@ -101,6 +101,19 @@ moon-power-flow/
 - GS 迭代、收敛判据、迭代上限、支路复功率与损耗。
 - 一个三节点算例与 GS 示例。
 
+## 浏览器演示（`docs/demo`）
+
+`examples/web_demo` 走 `build_topology` + `sweep`，把每个面板的数组打印成 `DATA` 开头的 JSON 行，`docs/demo/index.html` 截获后画柱状图与折线图。页面里的电压、不平衡度、迭代次数都由库函数算出，JS 里没有第二份潮流公式。
+
+三个面板：四节点算例逐相电压幅值与逐母线 VUF、缺相支路下的三相电压（下游 b 相 0 pu、VUF 50%）、变压器分接头 −4..+4 扫描的 `|V2_a|`（0.9466 → 1.0469 pu，附每档迭代次数表）。
+
+```
+pwsh -File scripts/build-demo.ps1      # 构建 js 产物并复制到 docs/demo
+python -m http.server 8765             # 仓库根目录执行，然后打开 http://127.0.0.1:8765/docs/demo/
+```
+
+产物与页面同目录且不依赖 CDN，直接双击 `docs/demo/index.html` 也能看。页面是静态的：算例与档位范围写死在 `examples/web_demo/main.mbt` 里；GitHub Pages 托管需要在仓库设置里把 `docs/` 设为发布源，这一步不在仓库内。
+
 ## 已验证（本机实测，2026-11-14 复跑）
 
 - `moon test`：wasm / wasm-gc / js / native 四个后端均 **95/95**，四后端一致（本库是纯计算，无 FFI / 无 I/O，四个后端跑的是同一套用例与同一份数值）。

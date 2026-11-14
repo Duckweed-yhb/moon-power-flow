@@ -71,6 +71,19 @@ moon-power-flow/
 - GS iteration, convergence criterion, iteration cap, branch complex power and losses.
 - One three-bus case and a GS demo.
 
+## Browser demo (`docs/demo`)
+
+`examples/web_demo` runs `build_topology` + `sweep` and prints one `DATA` JSON line per panel; `docs/demo/index.html` captures those lines and draws bar charts and a line chart. Every voltage, unbalance figure and iteration count comes from the library - there is no second copy of the power-flow equations in JavaScript.
+
+Three panels: per-phase voltage magnitudes and per-bus VUF for the four-node case, the three-phase voltages with an open branch (downstream phase b at 0 pu, VUF 50%), and the transformer tap scan over -4..+4 showing `|V2_a|` from 0.9466 to 1.0469 pu with an iteration table.
+
+```
+pwsh -File scripts/build-demo.ps1      # build the JS artifact and copy it into docs/demo
+python -m http.server 8765             # run from the repo root, then open http://127.0.0.1:8765/docs/demo/
+```
+
+The artifact sits next to the page and needs no CDN, so opening `docs/demo/index.html` directly also works. The page is static: the cases and tap range are hard-coded in `examples/web_demo/main.mbt`. GitHub Pages hosting needs `docs/` to be set as the publishing source in the repository settings; that step is outside the repo.
+
 ## Verified (local run, 2026-11-14)
 
 - `moon test` on wasm / wasm-gc / js / native: **95/95**, consistent across all four backends.

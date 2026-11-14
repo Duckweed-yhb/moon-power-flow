@@ -6,6 +6,11 @@
 
 ### Added
 
+- `examples/web_demo` 与 `docs/demo`：`build_topology` + `sweep` 的结果打印成 `META` / `DATA`
+  JSON 行，页面画柱状图与折线图。三个面板是四节点算例逐相电压幅值与 VUF（母线 3 的 VUF 0.1187%）、
+  缺相支路三相电压（下游 b 相 0 pu、VUF 50%）、变压器分接头 −4..+4 扫描的 `|V2_a|`（0.9466 → 1.0469 pu）。
+  配 `scripts/build-demo.ps1` 构建 js 产物并复制到 `docs/demo/`。页面是静态的，只展示固定工况。
+
 - `examples/dist_demo` 末尾补分接头扫描：`1 -变压器-> 2` 两节点网，档位 −4 到 +4、步进
   1.25%，只改变比，逐档打印受控母线电压。本机 native 实测 `|V2_a|` 从 `tap -4` 的
   `0.94661 pu` 单调升到 `tap 0` 的 `0.99678`、`tap 4` 的 `1.04694 pu`，每档约 1.25% 变比对应

@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>moon-power-flow 浏览器演示 - 配电潮流 / 缺相 / 分接头</title>
+<style>
+  :root {
+    --bg: #0d1017;
+    --panel: #14181f;
+    --line: #232935;
+    --text: #d7dde8;
+    --muted: #7d8798;
+    --cyan: #4fd1c5;
+    --orange: #f6ad55;
+    --blue: #63b3ed;
+    --red: #fc8181;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
+  body {
+    font: 14px/1.65 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    padding: 32px 20px 48px;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 6px; letter-spacing: .3px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 22px; }
+  .sub code { color: var(--cyan); }
+  .cards { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 26px; }
+  .stat {
+    flex: 1 1 150px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 12px;
+  }
+  .stat .k { color: var(--muted); font-size: 12px; }
+  .stat .v { font: 600 17px/1.3 ui-monospace, Consolas, monospace; color: var(--cyan); }
+  .stat .u { color: var(--muted); font-size: 12px; font-weight: 400; }
+  section { margin-bottom: 30px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 10px; }
+  .card + .card { margin-top: 12px; }
+  .hd { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+  .hd h2 { font-size: 15px; margin: 0; font-weight: 600; }
+  .hd .note { color: var(--muted); font-size: 12px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-left: auto; font-size: 12px; color: var(--muted); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  canvas { display: block; width: 100%; height: 240px; }
+  canvas.short { height: 200px; }
+  .cap { color: var(--muted); font-size: 12px; margin: 6px 2px 4px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12.5px; }
+  th, td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; color: var(--muted); }
+  th { color: var(--muted); font-weight: 500; }
+  footer { color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line); padding-top: 16px; }
+  footer code { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>moon-power-flow 浏览器演示</h1>
+  <p class="sub">
+    电压、电流、不平衡度都由 <code>web_demo.js</code>（MoonBit js 后端产物）算出：
+    <code>build_topology</code> + <code>sweep</code> 前推回代，页面只画图。
+  </p>
+
+  <div class="cards" id="stats"></div>
+
+  <section>
+    <div class="card">
+      <div class="hd">
+        <h2>四节点算例：逐相电压幅值</h2>
+        <span class="note">三相负荷不对称，标幺值，根节点 1.0 pu</span>
+        <div class="legend">
+          <span style="color:#4fd1c5"><i style="background:#4fd1c5"></i>a 相</span>
+          <span style="color:#f6ad55"><i style="background:#f6ad55"></i>b 相</span>
+          <span style="color:#63b3ed"><i style="background:#63b3ed"></i>c 相</span>
+        </div>
+      </div>
+      <canvas id="cv-four"></canvas>
+      <table id="tb-four"></table>
+      <p class="cap">沿馈线电压逐段下降，三相之间的差异就是不平衡度 VUF 的来源。</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <div class="hd">
+        <h2>缺相支路：三相电压</h2>
+        <span class="note">支路 a 相断开，下游该相电压为零，另两相按平衡关系重算</span>
+        <div class="legend">
+          <span style="color:#4fd1c5"><i style="background:#4fd1c5"></i>a 相</span>
+          <span style="color:#f6ad55"><i style="background:#f6ad55"></i>b 相</span>
+          <span style="color:#63b3ed"><i style="background:#63b3ed"></i>c 相</span>
+        </div>
+      </div>
+      <canvas id="cv-open" class="short"></canvas>
+      <p class="cap" id="open-cap"></p>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <div class="hd">
+        <h2>变压器分接头扫描</h2>
+        <span class="note">1 -变压器-> 2，档位 −4..+4，步进 1.25%，看受控母线 |V2_a|</span>
+        <div class="legend">
+          <span style="color:#4fd1c5"><i style="background:#4fd1c5"></i>|V2_a|</span>
+        </div>
+      </div>
+      <canvas id="cv-tap"></canvas>
+      <table id="tb-tap"></table>
+      <p class="cap">每档约 1.25% 变比带来约 1.27% 的电压变化；档位与电压的对应关系是 OLTC 调压能力的另一半证据。</p>
+    </div>
+  </section>
+
+  <footer>
+    数据来源：<code>examples/web_demo</code> 用 <code>moon build --target js</code> 构建，
+    产物 <code>web_demo.js</code> 与本页同目录。数字与 README 引用同源，改库必须重新出图：
+    <code>pwsh scripts/build-demo.ps1</code>。
+  </footer>
+</div>
+
+<script>
+window.__pfDemo = { meta: null, four: null, open: null, tap: null };
+(function () {
+  var raw = console.log;
+  console.log = function () {
+    try {
+      var text = Array.prototype.map.call(arguments, String).join(" ");
+      if (text.indexOf("META ") === 0) {
+        window.__pfDemo.meta = JSON.parse(text.slice(5));
+      } else if (text.indexOf("DATA ") === 0) {
+        var obj = JSON.parse(text.slice(5));
+        if (obj.panel === "four") window.__pfDemo.four = obj;
+        else if (obj.panel === "open") window.__pfDemo.open = obj;
+        else if (obj.panel === "tap") window.__pfDemo.tap = obj;
+      }
+    } catch (e) { /* 解析失败不影响其余面板 */ }
+    raw.apply(console, arguments);
+  };
+})();
+</script>
+<script src="./web_demo.js"></script>
+<script>
+(function () {
+  var D = window.__pfDemo;
+
+  function fmt(v) {
+    if (!v) return "0";
+    var a = Math.abs(v), s;
+    if (a >= 1000) s = v.toFixed(0);
+    else if (a >= 100) s = v.toFixed(1);
+    else if (a >= 1) s = v.toFixed(2);
+    else if (a >= 0.01) s = v.toFixed(3);
+    else s = v.toFixed(4);
+    if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return s;
+  }
+
+  function ticks(lo, hi, n) {
+    var span = hi - lo;
+    if (span <= 0) return [lo];
+    var step = Math.pow(10, Math.floor(Math.log10(span / n)));
+    var mult = span / n / step;
+    if (mult >= 7.5) step *= 10;
+    else if (mult >= 3.5) step *= 5;
+    else if (mult >= 1.5) step *= 2;
+    var out = [];
+    for (var v = Math.ceil(lo / step) * step; v <= hi + step * 1e-9; v += step) out.push(v);
+    return out;
+  }
+
+  function setup(id) {
+    var cv = document.getElementById(id);
+    var box = cv.getBoundingClientRect();
+    var dpr = window.devicePixelRatio || 1;
+    var w = Math.max(320, box.width), h = box.height;
+    cv.width = Math.round(w * dpr);
+    cv.height = Math.round(h * dpr);
+    var ctx = cv.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    return { ctx: ctx, w: w, h: h };
+  }
+
+  function axes(ctx, w, h, cfg) {
+    var L = 56, R = 14, T = 12, B = 34;
+    var pw = w - L - R, ph = h - T - B;
+    var xs = cfg.xmin, xe = cfg.xmax, ys = cfg.ymin, ye = cfg.ymax;
+    function px(x) { return L + (x - xs) / (xe - xs) * pw; }
+    function py(y) { return T + (1 - (y - ys) / (ye - ys)) * ph; }
+
+    ctx.strokeStyle = "#232935";
+    ctx.lineWidth = 1;
+    ctx.fillStyle = "#7d8798";
+    ctx.font = "11px ui-monospace, Consolas, monospace";
+
+    ticks(ys, ye, 5).forEach(function (v) {
+      var y = py(v);
+      ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(L + pw, y); ctx.stroke();
+      ctx.textAlign = "right";
+      ctx.fillText(fmt(v), L - 8, y + 4);
+    });
+    ticks(xs, xe, 8).forEach(function (v) {
+      var x = px(v);
+      ctx.beginPath(); ctx.moveTo(x, T); ctx.lineTo(x, T + ph); ctx.stroke();
+    });
+
+    ctx.strokeStyle = "#5b6478";
+    ctx.beginPath(); ctx.moveTo(L, T + ph); ctx.lineTo(L + pw, T + ph); ctx.stroke();
+
+    ctx.fillStyle = "#7d8798";
+    ctx.font = "11px -apple-system, 'Microsoft YaHei', sans-serif";
+    if (cfg.ylabel) {
+      ctx.save();
+      ctx.translate(12, T + ph / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = "center";
+      ctx.fillText(cfg.ylabel, 0, 0);
+      ctx.restore();
+    }
+    return { px: px, py: py, L: L, pw: pw, T: T, ph: ph };
+  }
+
+  function grouped(id, cfg) {
+    var s = setup(id);
+    var g = axes(s.ctx, s.w, s.h, cfg);
+    var n = cfg.labels.length, k = cfg.series.length;
+    var band = g.pw / n;
+    var barW = Math.min(18, band * 0.8 / k);
+    for (var i = 0; i < n; i++) {
+      for (var j = 0; j < k; j++) {
+        var v = cfg.series[j].values[i];
+        var x = g.L + band * (i + 0.5) + (j - (k - 1) / 2) * barW * 1.1 - barW / 2;
+        var y0 = g.py(cfg.ymin), y1 = g.py(Math.min(v, cfg.ymax));
+        s.ctx.fillStyle = cfg.series[j].color;
+        s.ctx.fillRect(x, y1, barW, y0 - y1);
+      }
+      var cx = g.L + band * (i + 0.5);
+      s.ctx.fillStyle = "#7d8798";
+      s.ctx.font = "11px -apple-system, 'Microsoft YaHei', sans-serif";
+      s.ctx.textAlign = "center";
+      s.ctx.fillText(cfg.labels[i], cx, g.T + g.ph + 20);
+    }
+  }
+
+  function line(id, cfg) {
+    var s = setup(id);
+    var g = axes(s.ctx, s.w, s.h, cfg);
+    s.ctx.save();
+    s.ctx.strokeStyle = cfg.color;
+    s.ctx.lineWidth = 2;
+    s.ctx.beginPath();
+    for (var i = 0; i < cfg.points.length; i++) {
+      var x = g.px(cfg.points[i][0]), y = g.py(cfg.points[i][1]);
+      if (i === 0) s.ctx.moveTo(x, y); else s.ctx.lineTo(x, y);
+    }
+    s.ctx.stroke();
+    s.ctx.restore();
+
+    s.ctx.fillStyle = cfg.color;
+    s.ctx.font = "11px ui-monospace, Consolas, monospace";
+    s.ctx.textAlign = "center";
+    cfg.points.forEach(function (p, i) {
+      var x = Math.min(Math.max(g.px(p[0]), g.L + 16), g.L + g.pw - 16);
+      var y = g.py(p[1]);
+      s.ctx.beginPath();
+      s.ctx.arc(g.px(p[0]), y, 3, 0, Math.PI * 2);
+      s.ctx.fill();
+      s.ctx.fillText(fmt(p[1]), x, i % 2 === 0 ? y - 9 : y + 17);
+    });
+  }
+
+  function table(id, head, rows) {
+    var t = document.getElementById(id);
+    var html = "<tr>" + head.map(function (h) { return "<th>" + h + "</th>"; }).join("") + "</tr>";
+    rows.forEach(function (r) {
+      html += "<tr>" + r.map(function (c) { return "<td>" + c + "</td>"; }).join("") + "</tr>";
+    });
+    t.innerHTML = html;
+  }
+
+  var m = D.meta || {};
+  var stats = [
+    ["求解容差", m.tol === undefined ? "-" : "1e-9", ""],
+    ["最大迭代", m.max_iter === undefined ? "-" : m.max_iter, "次"],
+    ["四节点迭代", D.four ? D.four.iter : "-", "次"],
+    ["缺相算例迭代", D.open ? D.open.iter : "-", "次"]
+  ];
+  var host = document.getElementById("stats");
+  stats.forEach(function (s) {
+    var el = document.createElement("div");
+    el.className = "stat";
+    el.innerHTML = '<div class="k">' + s[0] + '</div><div class="v">' + s[1] +
+      (s[2] ? ' <span class="u">' + s[2] + "</span>" : "") + "</div>";
+    host.appendChild(el);
+  });
+
+  var colors = { a: "#4fd1c5", b: "#f6ad55", c: "#63b3ed" };
+  function labelsOf(n) {
+    var out = [];
+    for (var i = 0; i < n; i++) out.push("母线 " + (i + 1));
+    return out;
+  }
+
+  if (D.four) {
+    var n4 = D.four.va.length;
+    grouped("cv-four", {
+      xmin: 0, xmax: 1, ymin: 0.98, ymax: 1.01,
+      ylabel: "电压幅值 / pu",
+      labels: labelsOf(n4),
+      series: [
+        { color: colors.a, values: D.four.va },
+        { color: colors.b, values: D.four.vb },
+        { color: colors.c, values: D.four.vc }
+      ]
+    });
+    table("tb-four", ["母线", "a 相", "b 相", "c 相", "VUF / %"],
+      D.four.va.map(function (v, i) {
+        return ["母线 " + (i + 1), v.toFixed(4), D.four.vb[i].toFixed(4),
+                D.four.vc[i].toFixed(4), D.four.vuf[i].toFixed(4)];
+      }));
+  }
+
+  if (D.open) {
+    var n2 = D.open.va.length;
+    grouped("cv-open", {
+      xmin: 0, xmax: 1, ymin: 0, ymax: 1.05,
+      ylabel: "电压幅值 / pu",
+      labels: labelsOf(n2),
+      series: [
+        { color: colors.a, values: D.open.va },
+        { color: colors.b, values: D.open.vb },
+        { color: colors.c, values: D.open.vc }
+      ]
+    });
+    document.getElementById("open-cap").textContent =
+      "母线 2 的 b 相电压为 " + fmt(D.open.vb[1]) + " pu，对应 VUF " +
+      fmt(D.open.vuf[1]) + "%；a、c 两相仍为 " + fmt(D.open.va[1]) + " pu。";
+  }
+
+  if (D.tap) {
+    var pts = D.tap.tap.map(function (t, i) { return [t, D.tap.v2[i]]; });
+    line("cv-tap", {
+      xmin: -4, xmax: 4, ymin: 0.93, ymax: 1.06,
+      ylabel: "|V2_a| / pu",
+      color: "#4fd1c5",
+      points: pts
+    });
+    table("tb-tap", ["档位", "变比 k", "|V2_a| / pu", "迭代"],
+      D.tap.tap.map(function (t, i) {
+        return [t > 0 ? "+" + t : String(t), D.tap.ratio[i].toFixed(4),
+                D.tap.v2[i].toFixed(4), String(D.tap.iter[i])];
+      }));
+  }
+})();
+</script>
+</body>
+</html>
