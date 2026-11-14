@@ -156,3 +156,52 @@ test "invalid transformer spec is rejected" {
     Err(e) => assert_true(e.contains("leakage"))
   }
 }
+
+///|
+/// 变压器不在根边上时（线路 → 变压器 → 负荷），原边电流必须按 k 折算。
+///
+/// 这条是回代累加的基准问题：变压器支路存的电流是副边侧 p.u. 电流，
+/// 父节点在累加子支路电流时如果直接相加，上游线路电流会少一个 k 倍的折算，
+/// 于是根注入比「负荷 + 损耗」小一截，而电压迭代本身照样收敛。
+test "transformer behind a line reflects primary current" {
+  let ratio = 1.05
+  let s = @model.cx(0.10, 0.03)
+  let zero = @dist.Phasor::zero()
+  let v_root = @dist.Phasor::balanced(1.0, 0.0)
+  let line_z = @dist.z3_diag(
+    @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
+    @model.cx(0.01, 0.02),
+  )
+  let tx = match
+    @dist.TxSpec::new(
+      ratio,
+      @dist.z3_diag(
+        @model.cx(0.02, 0.04),
+        @model.cx(0.02, 0.04),
+        @model.cx(0.02, 0.04),
+      ),
+    ) {
+    Ok(t) => t
+    Err(e) => fail(e)
+  }
+  let net = @dist.DistNet::make(
+    [
+      @dist.DistNode::make(1, zero),
+      @dist.DistNode::make(2, zero),
+      @dist.DistNode::make(3, @dist.Phasor::uniform(s)),
+    ],
+    [@dist.DistEdge::make(1, 2, line_z), @dist.DistEdge::make_tx(2, 3, tx)],
+    1,
+    v_root,
+  )
+  let r = tx_solve(net)
+  let loss = @dist.total_loss_active(net, r)
+  let load = @dist.load_demand_active(net)
+  let inject = @dist.root_injection_active(net, r)
+  assert_true(tx_near(inject, load + loss, 1.0e-9))
+  // 上游线路电流是原边电流，等于 k 倍副边电流。
+  let i_line = @model.cx_abs(r.branch_currents()[0].a())
+  let i_tx = @model.cx_abs(r.branch_currents()[1].a())
+  assert_true(tx_near(i_line, ratio * i_tx, 1.0e-9))
+}

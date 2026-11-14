@@ -197,7 +197,18 @@ fn sweep_with_zip(
         let i_load = load_current(net.node_at(u).s(), v[u], zip)
         let mut total = i_load
         for ch in children[u] {
-          total = total.add(i_branch[parent_edge[ch]])
+          // 变压器支路存的是副边侧电流 I_sec，父节点在**原边**，累加时要按
+          // I_pri = k·I_sec 折算回原边。漏掉这一步时上游支路电流少一个 k 倍，
+          // 电压照样收敛，但根注入与「负荷 + 损耗」对不上。
+          let ce = net.edge_at(parent_edge[ch])
+          let i_ch = i_branch[parent_edge[ch]]
+          total = total.add(
+            if ce.tx().enabled() {
+              i_ch.scale(ce.tx().ratio())
+            } else {
+              i_ch
+            },
+          )
         }
         // 断开相不参与回路：该相支路电流置零。
         let pe = parent_edge[u]
