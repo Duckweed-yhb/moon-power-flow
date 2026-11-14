@@ -126,4 +126,65 @@ fn main {
     }
     Err(e) => println("sweep error: " + e.describe())
   }
+  // 组合算例：变压器在网中间、OLTC 调档、下游还有一条缺相支路。
+  // 三项能力原先各自只在两节点小网里出现过，这里放在同一条馈线上跑。
+  println("")
+  println(
+    "== 变压器 + OLTC + 缺相（1 -线路-> 2 -变压器-> 3 -缺相-> 4）==",
+  )
+  let combo = @dist.case_tx_oltc_open()
+  let combo_topo = match @dist.build_topology(combo) {
+    Ok(t) => t
+    Err(e) => {
+      println("topology error: " + e.describe())
+      return
+    }
+  }
+  // 步进 1.25%/档，目标 0.97 pu、死区 ±0.005 pu，档位限制 ±8。
+  let oltc = match @dist.Oltc::new(3, 0, -8, 8, 0.0125, 0.97, 0.005) {
+    Ok(o) => o
+    Err(e) => {
+      println("oltc error: " + e)
+      return
+    }
+  }
+  let run = match
+    @dist.run_oltc(combo, combo_topo, oltc, 0.000000001, 100, 20) {
+    Ok(r) => r
+    Err(e) => {
+      println("oltc run error: " + e.describe())
+      return
+    }
+  }
+  let mut ti = 0
+  let moves = run.moves()
+  let mut trace = ""
+  while ti < moves.length() {
+    if ti > 0 {
+      trace = trace + " > "
+    }
+    let (tap, mag) = moves[ti]
+    trace = trace + "tap " + tap.to_string() + ": " + mag.to_string()
+    ti += 1
+  }
+  println("tap trace: " + trace)
+  println(
+    "final tap=" +
+    run.oltc().tap().to_string() +
+    " (ratio " +
+    run.oltc().ratio().to_string() +
+    "), bus3 |a|=" +
+    @model.cx_abs(run.result().voltages()[2].a()).to_string() +
+    " pu, in band=" +
+    run.reached_band().to_string(),
+  )
+  println(
+    "open phase on 3->4: |I_b|=" +
+    @model.cx_abs(run.result().branch_currents()[2].b()).to_string() +
+    " pu, |V4_b|=" +
+    @model.cx_abs(run.result().voltages()[3].b()).to_string() +
+    " pu, |V4_a|=" +
+    @model.cx_abs(run.result().voltages()[3].a()).to_string() +
+    " pu",
+  )
 }
