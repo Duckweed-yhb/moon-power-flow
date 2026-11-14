@@ -56,7 +56,7 @@ moon-power-flow/
 - BFS topological order, parent edge, parent node, and child table; backward sweep uses reverse order and forward sweep uses source-to-leaf order.
 - Backward/forward sweep (`sweep`): flat start, three-phase coupled voltage drops, convergence criterion, iteration cap; non-convergence returns `SweepErr::NotConverged`.
 - Six built-in cases: four-node unbalanced, four-node balanced (three-phase degenerate check), two-node with mutual impedance, two-node transformer, two-node open-phase, two-node scrambled ids.
-- Transformer branch (`TxSpec`): off-nominal ratio `k = V_sec/V_pri` plus leakage impedance 3x3 referred to the secondary. At k=1 the model degenerates to a plain line with the same impedance; forward `V_sec = k·V_pri − Z_t·I_sec`, primary current `I_pri = k·I_sec` for complex-power conservation; loss uses secondary leakage impedance and secondary current. No magnetizing branch, no vector-group phase shift.
+- Transformer branch (`TxSpec`): off-nominal ratio `k = V_sec/V_pri` plus leakage impedance 3x3 referred to the secondary. At k=1 the model degenerates to a plain line with the same impedance; forward `V_sec = k·V_pri − Z_t·I_sec`, primary current `I_pri = k·I_sec` for complex-power conservation; loss uses secondary leakage impedance and secondary current. The primary-current reflection also holds when the transformer sits behind a line, not only when it hangs directly off the root. No magnetizing branch, no vector-group phase shift.
 - OLTC tap regulation (`dist/oltc.mbt`): integer tap `[tap_min, tap_max]`, per-step ratio change, target voltage magnitude plus deadband; states distinguish in-band / raise / lower / upper limit / lower limit; `run_oltc` closes the loop by repeatedly sweeping, reading the controlled bus a-phase voltage, moving and clamping taps until in-band, hitting a limit, or exhausting moves. Non-transformer controlled edge or missing node returns structured `OltcErr::Control`.
 - Per-phase switching / open phase (`Switch`): an open phase carries zero branch current and a dead downstream phase; the other two phases serve loads normally; power balance holds on closed phases only.
 - ZIP static loads (shared `model/zip.mbt`): `S(V) = S0·(α + β·|V| + γ·|V|²)`; the three-phase `sweep_zip` scales each phase by its own voltage magnitude, the single-phase `gauss_seidel_zip` scales net injection by node voltage; with α=1 each side matches the constant-power solver.
@@ -71,11 +71,11 @@ moon-power-flow/
 - GS iteration, convergence criterion, iteration cap, branch complex power and losses.
 - One three-bus case and a GS demo.
 
-## Verified (local run, 2026-11-13)
+## Verified (local run, 2026-11-14)
 
-- `moon test` on wasm / wasm-gc / js / native: **91/91**, consistent across all four backends.
+- `moon test` on wasm / wasm-gc / js / native: **92/92**, consistent across all four backends.
 - `moon check --deny-warn` on all four targets: 0 warnings.
-- Transformer comparison: k=1 matches a plain line bit-for-bit; k=1.05 raises secondary voltage; larger leakage lowers it; transformer feeder active-power balance holds. OLTC: invalid config rejected, tap-ratio mapping correct, limits clamped, closed loop does not worsen the target. Open phase: open phase current/voltage zero, closed phases normal, balance on closed phases.
+- Transformer comparison: k=1 matches a plain line bit-for-bit; k=1.05 raises secondary voltage; larger leakage lowers it; transformer feeder active-power balance holds. A transformer placed behind a line keeps the balance too, and the upstream line current equals `k` times the secondary current. OLTC: invalid config rejected, tap-ratio mapping correct, limits clamped, closed loop does not worsen the target. Open phase: open phase current/voltage zero, closed phases normal, balance on closed phases.
 - Three-phase demo (`moon run examples/dist_demo --target native`; js also run): the four-node unbalanced case converges in 4 sweeps, `max |dV| ≈ 4.6e-10`; bus 2 three-phase voltages are about `0.9974 pu @ -0.16°`, `0.9991 pu @ -120.05°`, `0.9985 pu @ 119.91°` — the three phases no longer match, exactly what a balanced assumption would erase.
 - Independent baseline: the 24 voltage components of the four-node case are computed by `scripts/gen_dist_fixtures.py` (an independent Python backward/forward sweep) and hard-coded in `dist/fixtures_test.mbt`; they are not taken from this library's output.
 - Single-phase side: the three-bus GS case converges in 8 sweeps; expected Ybus values are hand-calculated.
