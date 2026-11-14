@@ -133,3 +133,48 @@ pub fn case_scrambled_ids() -> DistNet {
   ]
   DistNet::make(nodes, edges, 10, Phasor::balanced(1.0, 0.0))
 }
+
+///|
+/// 变压器 + OLTC + 缺相同网的算例：1 →(线路) 2 →(变压器) 3 →(缺相线路) 4。
+///
+/// 三件事同时出现在一张网里：支路 1→2 是普通线路，2→3 是带漏阻抗的变压器
+/// （变比由 OLTC 调档改写），3→4 的 b 相断开。节点 3 是 OLTC 的受控母线，
+/// 节点 3 / 4 挂不平衡负荷。
+/// 用途：让「变压器在网中间、档位被调、下游还有缺相支路」这条组合路径也有算例，
+/// 而不是三项能力各自只在一张两节点小网里出现过。
+pub fn case_tx_oltc_open() -> DistNet {
+  let line_z = @model.cx(0.01, 0.02)
+  let zt = @model.cx(0.02, 0.04)
+  let tx = match TxSpec::new(1.0, z3_diag(zt, zt, zt)) {
+    Ok(t) => t
+    Err(_) => TxSpec::disabled()
+  }
+  let nodes = [
+    DistNode::make(1, Phasor::zero()),
+    DistNode::make(2, Phasor::zero()),
+    DistNode::make(
+      3,
+      phasor(
+        @model.cx(0.06, 0.02),
+        @model.cx(0.04, 0.015),
+        @model.cx(0.05, 0.015),
+      ),
+    ),
+    DistNode::make(
+      4,
+      phasor(
+        @model.cx(0.05, 0.015),
+        @model.cx(0.03, 0.01),
+        @model.cx(0.04, 0.012),
+      ),
+    ),
+  ]
+  let edges = [
+    DistEdge::make(1, 2, z3_diag(line_z, line_z, line_z)),
+    DistEdge::make_tx(2, 3, tx),
+    DistEdge::make(3, 4, z3_diag(line_z, line_z, line_z)).with_switch(
+      Switch::closed().open_phase(1),
+    ),
+  ]
+  DistNet::make(nodes, edges, 1, Phasor::balanced(1.0, 0.0))
+}
