@@ -244,6 +244,17 @@ pub fn run_oltc(
       Err(e) => return Err(Sweep(e))
     }
     let mag = @model.cx_abs(r.voltages()[node].a())
+    if !(mag > 0.0) {
+      // a 相断开时该相电压为 0，控制律没有可读的量；继续按「欠压」升档
+      // 会把档位推到上限，所以这里直接拒绝，不产出调档轨迹。
+      return Err(
+        Control(
+          "controlled a-phase voltage is " +
+          mag.to_string() +
+          ", tap control is undefined when that phase is open",
+        ),
+      )
+    }
     moves.push((cur.tap(), mag))
     latest = Some(r)
     status = cur.status(mag)

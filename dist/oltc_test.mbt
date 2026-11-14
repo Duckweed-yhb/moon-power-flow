@@ -205,3 +205,49 @@ test "oltc rejects a plain-line feeder and a missing node" {
       }
   }
 }
+
+///|
+/// 受控母线的 a 相被变压器支路断开时，该相电压为 0。调档控制律按 a 相判断，
+/// 这一拍没有任何可读的电压，继续按「欠压」升档只会把档位推到上限，
+/// 所以驱动层必须直接报错，而不是跑满 `max_moves`。
+test "oltc reports an open controlled phase instead of moving taps" {
+  let zt = @model.cx(0.03, 0.05)
+  let z3 = @dist.z3_diag(zt, zt, zt)
+  let tx = match @dist.TxSpec::new(1.0, z3) {
+    Ok(t) => t
+    Err(e) => fail(e)
+  }
+  let sw = @dist.Switch::closed().open_phase(0)
+  let edge = @dist.DistEdge::make_tx(1, 2, tx).with_switch(sw)
+  let s = @model.cx(0.28, 0.09)
+  let net = @dist.DistNet::make(
+    [
+      @dist.DistNode::make(1, @dist.Phasor::zero()),
+      @dist.DistNode::make(2, @dist.Phasor::uniform(s)),
+    ],
+    [edge],
+    1,
+    @dist.Phasor::balanced(1.0, 0.0),
+  )
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  let oltc = match @dist.Oltc::new(2, 0, -6, 6, 0.02, 0.99, 0.01) {
+    Ok(x) => x
+    Err(e) => fail(e)
+  }
+  match @dist.run_oltc(net, topo, oltc, 1.0e-9, 40, 10) {
+    Ok(run) =>
+      fail(
+        "open phase must not produce a tap plan, got " +
+        run.moves().length().to_string() +
+        " moves",
+      )
+    Err(e) =>
+      match e {
+        @dist.Control(msg) => assert_true(msg.contains("phase"))
+        @dist.Sweep(_) => fail("expected a control error, got a sweep error")
+      }
+  }
+}
