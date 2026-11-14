@@ -239,4 +239,45 @@ fn main {
       Err(e) => println(label + ": " + e.describe())
     }
   }
+  // 分接头扫描：同一台 1 -> 2 变压器只改变比，看受控母线电压怎么随档位走。
+  // OLTC 那一段给的是「怎么调到目标」，这一段给的是「档位与电压的对应关系」，
+  // 两段合起来才是调压能力的完整证据。
+  println("")
+  println(
+    "=== 分接头扫描（1 -变压器-> 2，档位 ±4，步进 1.25%）===",
+  )
+  let tx_base = @dist.case_with_transformer()
+  let tx_topo = match @dist.build_topology(tx_base) {
+    Ok(t) => t
+    Err(e) => {
+      println("tx topology error: " + e.describe())
+      return
+    }
+  }
+  let mut tap = -4
+  while tap <= 4 {
+    let ratio = 1.0 + tap.to_double() * 0.0125
+    let edges = [tx_base.edge_at(0).with_ratio(ratio)]
+    let net2 = @dist.DistNet::make(
+      tx_base.nodes(),
+      edges,
+      tx_base.root_id(),
+      tx_base.v_root(),
+    )
+    match @dist.sweep(net2, tx_topo, 0.000000001, 100) {
+      Ok(r) =>
+        println(
+          "tap " +
+          tap.to_string() +
+          " (k=" +
+          ratio.to_string() +
+          "): |V2_a|=" +
+          @model.cx_abs(r.voltages()[1].a()).to_string() +
+          " pu, iter=" +
+          r.iter().to_string(),
+        )
+      Err(e) => println("tap " + tap.to_string() + ": " + e.describe())
+    }
+    tap += 1
+  }
 }
