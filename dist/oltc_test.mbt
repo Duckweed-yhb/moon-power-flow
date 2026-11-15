@@ -251,3 +251,197 @@ test "oltc reports an open controlled phase instead of moving taps" {
       }
   }
 }
+
+///|
+/// 逐档扫描的长度与单调性：13 档（-6…6）全部解出，电压随升档单调上升。
+test "tap scan covers every tap and voltage rises with the tap" {
+  let net = heavy_tx_net()
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  let oltc = match @dist.Oltc::new(2, 0, -6, 6, 0.02, 0.99, 0.01) {
+    Ok(x) => x
+    Err(e) => fail(e)
+  }
+  match
+    @dist.scan_taps_zip(
+      net,
+      topo,
+      oltc,
+      @model.Zip::constant_power(),
+      1.0e-9,
+      100,
+    ) {
+    Ok(rows) => {
+      assert_eq(rows.length(), 13)
+      assert_eq(rows[0].0, -6)
+      assert_eq(rows[12].0, 6)
+      let mut i = 1
+      while i < rows.length() {
+        assert_true(rows[i].1 > rows[i - 1].1)
+        i += 1
+      }
+    }
+    Err(e) => fail(e.describe())
+  }
+}
+
+///|
+/// ZIP 的电压修正方向：同档位下，电压低于额定时恒阻抗负荷取用更少、电压更高；
+/// 高于额定时反过来取用更多、电压更低。恒功率负荷两头都不动。
+test "zip load correction flips sign across nominal voltage" {
+  let net = heavy_tx_net()
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  let oltc = match @dist.Oltc::new(2, 0, -6, 6, 0.02, 0.99, 0.01) {
+    Ok(x) => x
+    Err(e) => fail(e)
+  }
+  let cp = @dist.scan_taps_zip(
+    net,
+    topo,
+    oltc,
+    @model.Zip::constant_power(),
+    1.0e-9,
+    100,
+  )
+  let ci = @dist.scan_taps_zip(
+    net,
+    topo,
+    oltc,
+    @model.Zip::constant_impedance(),
+    1.0e-9,
+    100,
+  )
+  match (cp, ci) {
+    (Ok(by_cp), Ok(by_ci)) => {
+      assert_eq(by_cp.length(), by_ci.length())
+      // 0 档（下标 6）：恒功率 0.98686，恒阻抗 0.98720
+      assert_true(by_ci[6].1 > by_cp[6].1 + 0.000001)
+      // 6 档（下标 12）：恒功率 1.10831，恒阻抗 1.10567
+      assert_true(by_ci[12].1 < by_cp[12].1 - 0.000001)
+    }
+    (Err(e), _) => fail("constant power scan failed: " + e.describe())
+    (_, Err(e)) => fail("constant impedance scan failed: " + e.describe())
+  }
+}
+
+///|
+/// 恒功率 ZIP 就是旧行为：与 run_oltc 的终档、调档轨迹和终止状态完全一致。
+test "oltc zip driver matches the constant power driver" {
+  let net = heavy_tx_net()
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  let oltc = match @dist.Oltc::new(2, 0, -6, 6, 0.02, 0.99, 0.01) {
+    Ok(x) => x
+    Err(e) => fail(e)
+  }
+  let plan = match @dist.run_oltc(net, topo, oltc, 1.0e-9, 100, 12) {
+    Ok(r) => r
+    Err(e) => fail(e.describe())
+  }
+  let zipped_res = @dist.run_oltc_zip(
+    net,
+    topo,
+    oltc,
+    @model.Zip::constant_power(),
+    1.0e-9,
+    100,
+    12,
+  )
+  let zipped = match zipped_res {
+    Ok(r) => r
+    Err(e) => fail(e.describe())
+  }
+  assert_eq(zipped.oltc().tap(), plan.oltc().tap())
+  assert_true(zipped.reached_band() == plan.reached_band())
+  assert_eq(zipped.moves().length(), plan.moves().length())
+  assert_true(zipped.stopped().describe() == plan.stopped().describe())
+  let mut i = 0
+  while i < plan.moves().length() {
+    assert_eq(zipped.moves()[i].0, plan.moves()[i].0)
+    assert_true(oltc_near(zipped.moves()[i].1, plan.moves()[i].1, 1.0e-12))
+    i += 1
+  }
+}
+
+///|
+/// 混合 ZIP 下闭环仍然能进带，最终电压落在目标死区内。
+test "oltc zip driver reaches the band under a mixed zip load" {
+  let net = heavy_tx_net()
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  let oltc = match @dist.Oltc::new(2, 0, -6, 6, 0.02, 0.99, 0.01) {
+    Ok(x) => x
+    Err(e) => fail(e)
+  }
+  let mixed = match @model.Zip::new(0.5, 0.2, 0.3) {
+    Ok(z) => z
+    Err(e) => fail(e)
+  }
+  match @dist.run_oltc_zip(net, topo, oltc, mixed, 1.0e-9, 100, 12) {
+    Ok(run) => {
+      assert_true(run.reached_band())
+      let last = run.moves()[run.moves().length() - 1].1
+      assert_true(oltc_near(last, oltc.target(), oltc.band() + 1.0e-9))
+    }
+    Err(e) => fail(e.describe())
+  }
+}
+
+///|
+/// 扫描与驱动共用同一套受控支路校验：普通线路与不存在的节点都报 Control。
+test "tap scan rejects a plain line and a missing node" {
+  let plain = @dist.case_four_node()
+  let topo = match @dist.build_topology(plain) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  let oltc = match @dist.Oltc::new(2, 0, -5, 5, 0.02, 0.99, 0.01) {
+    Ok(x) => x
+    Err(e) => fail(e)
+  }
+  match
+    @dist.scan_taps_zip(
+      plain,
+      topo,
+      oltc,
+      @model.Zip::constant_power(),
+      1.0e-9,
+      100,
+    ) {
+    Ok(_) => fail("plain line must be rejected by the tap scan")
+    Err(e) =>
+      match e {
+        @dist.OltcErr::Control(_) => ()
+        _ => fail("expected Control error")
+      }
+  }
+  let missing = match @dist.Oltc::new(99, 0, -5, 5, 0.02, 0.99, 0.01) {
+    Ok(x) => x
+    Err(e) => fail(e)
+  }
+  match
+    @dist.scan_taps_zip(
+      plain,
+      topo,
+      missing,
+      @model.Zip::constant_power(),
+      1.0e-9,
+      100,
+    ) {
+    Ok(_) => fail("missing node must be rejected by the tap scan")
+    Err(e) =>
+      match e {
+        @dist.OltcErr::Control(_) => ()
+        _ => fail("expected Control error")
+      }
+  }
+}

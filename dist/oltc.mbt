@@ -105,6 +105,36 @@ pub fn Oltc::ratio(self : Oltc) -> Double {
 }
 
 ///|
+/// 每档变比步进。
+pub fn Oltc::step(self : Oltc) -> Double {
+  self.step
+}
+
+///|
+/// 档位下限。
+pub fn Oltc::tap_min(self : Oltc) -> Int32 {
+  self.tap_min
+}
+
+///|
+/// 档位上限。
+pub fn Oltc::tap_max(self : Oltc) -> Int32 {
+  self.tap_max
+}
+
+///|
+/// 目标电压。
+pub fn Oltc::target(self : Oltc) -> Double {
+  self.target
+}
+
+///|
+/// 目标死区半宽。
+pub fn Oltc::band(self : Oltc) -> Double {
+  self.band
+}
+
+///|
 /// 按受控母线某相电压模长判断当前状态。
 pub fn Oltc::status(self : Oltc, v_mag : Double) -> OltcStatus {
   if v_mag < self.target - self.band {
@@ -197,8 +227,73 @@ pub fn OltcRun::stopped(self : OltcRun) -> OltcStatus {
 }
 
 ///|
+/// 受控母线及其上游支路的下标。节点不存在、没有上游支路或上游不是变压器，
+/// 都按控制输入错误返回，不 panic。
+fn controlled_indices(
+  net : DistNet,
+  topo : Topology,
+  node_id : Int32,
+) -> Result[(Int32, Int32), OltcErr] {
+  let node = match net.find_index(node_id) {
+    Some(k) => k
+    None =>
+      return Err(
+        Control("controlled node " + node_id.to_string() + " not found"),
+      )
+  }
+  let pe = topo.parent_edge()[node]
+  if pe < 0 || pe >= net.edge_count() {
+    return Err(Control("controlled node has no parent edge"))
+  }
+  let edge = net.edge_at(pe)
+  if !edge.tx().enabled() {
+    return Err(Control("controlled edge is not a transformer branch"))
+  }
+  Ok((node, pe))
+}
+
+///|
+/// 逐档扫描：档位从下限走到上限，每档按给定 ZIP 负荷求解一次，返回
+/// (档位, 受控母线 a 相电压模长)。用于画调压曲线、检查「电压随档位单调」，
+/// 或者先看清 ZIP 负荷下哪一档才进带，再决定闭环从哪起步。
+///
+/// 与 `run_oltc_zip` 共用同一套受控支路校验；潮流失败透传 `SweepErr`。
+pub fn scan_taps_zip(
+  net : DistNet,
+  topo : Topology,
+  oltc : Oltc,
+  zip : @model.Zip,
+  tol : Double,
+  max_iter : Int32,
+) -> Result[Array[(Int32, Double)], OltcErr] {
+  let (node, pe) = match controlled_indices(net, topo, oltc.node_id()) {
+    Ok(x) => x
+    Err(e) => return Err(e)
+  }
+  let edges : Array[DistEdge] = []
+  for e in 0..<net.edge_count() {
+    edges.push(net.edge_at(e))
+  }
+  let base = net.edge_at(pe)
+  let out : Array[(Int32, Double)] = []
+  let mut tap = oltc.tap_min()
+  while tap <= oltc.tap_max() {
+    let ratio = 1.0 + tap.to_double() * oltc.step()
+    edges[pe] = base.with_ratio(ratio)
+    let net2 = DistNet::make(net.nodes(), edges, net.root_id(), net.v_root())
+    let r = match sweep_zip(net2, topo, zip, tol, max_iter) {
+      Ok(x) => x
+      Err(e) => return Err(Sweep(e))
+    }
+    out.push((tap, @model.cx_abs(r.voltages()[node].a())))
+    tap += 1
+  }
+  Ok(out)
+}
+
+///|
 /// 闭环调档驱动：反复求解 → 读受控母线 a 相电压 → 判断方向 → 调档钳限，
-/// 直到进入目标区间、碰到档位上下限或用完调档次数。
+/// 直到进入目标区间、碰到档位上下限或用完调档次数。负荷按恒功率算。
 ///
 /// 受控母线必须挂在某条变压器支路上游；拓扑与网络来自同一次 `build_topology`。
 /// 控制层输入不合法（节点不存在、支路不是变压器）返回 `Err(String)`；
@@ -211,20 +306,41 @@ pub fn run_oltc(
   max_iter : Int32,
   max_moves : Int32,
 ) -> Result[OltcRun, OltcErr] {
-  let node = match net.find_index(oltc.node_id()) {
-    Some(k) => k
-    None =>
-      return Err(
-        Control("controlled node " + oltc.node_id().to_string() + " not found"),
-      )
-  }
-  let pe = topo.parent_edge()[node]
-  if pe < 0 || pe >= net.edge_count() {
-    return Err(Control("controlled node has no parent edge"))
-  }
-  let edge = net.edge_at(pe)
-  if !edge.tx().enabled() {
-    return Err(Control("controlled edge is not a transformer branch"))
+  run_oltc_with(net, topo, oltc, None, tol, max_iter, max_moves)
+}
+
+///|
+/// 与 `run_oltc` 同一套控制律，但每拍按给定 ZIP 静特性缩放负荷。
+///
+/// 恒功率下电压跌多少负荷就取多少，ZIP 下电压一跌负荷跟着变小、反过来又让
+/// 电压没那么跌，所以两种负荷模型最终可能停在不同档位。恒阻抗占比越大，
+/// 需要升的档通常越少；`scan_taps_zip` 能把这个差异直接扫出来。
+pub fn run_oltc_zip(
+  net : DistNet,
+  topo : Topology,
+  oltc : Oltc,
+  zip : @model.Zip,
+  tol : Double,
+  max_iter : Int32,
+  max_moves : Int32,
+) -> Result[OltcRun, OltcErr] {
+  run_oltc_with(net, topo, oltc, Some(zip), tol, max_iter, max_moves)
+}
+
+///|
+/// 两种调档驱动的共用主体：`zip` 为 None 时是恒功率负荷（旧行为）。
+fn run_oltc_with(
+  net : DistNet,
+  topo : Topology,
+  oltc : Oltc,
+  zip : @model.Zip?,
+  tol : Double,
+  max_iter : Int32,
+  max_moves : Int32,
+) -> Result[OltcRun, OltcErr] {
+  let (node, pe) = match controlled_indices(net, topo, oltc.node_id()) {
+    Ok(x) => x
+    Err(e) => return Err(e)
   }
   let edges : Array[DistEdge] = []
   for e in 0..<net.edge_count() {
@@ -237,13 +353,18 @@ pub fn run_oltc(
   let mut status = InBand
   let mut move_no = 0
   while move_no < max_moves {
-    edges[pe] = edge.with_ratio(cur.ratio())
+    let base = net.edge_at(pe)
+    edges[pe] = base.with_ratio(cur.ratio())
     let net2 = DistNet::make(net.nodes(), edges, net.root_id(), net.v_root())
-    let r = match sweep(net2, topo, tol, max_iter) {
+    let r = match zip {
+      None => sweep(net2, topo, tol, max_iter)
+      Some(z) => sweep_zip(net2, topo, z, tol, max_iter)
+    }
+    let solved = match r {
       Ok(x) => x
       Err(e) => return Err(Sweep(e))
     }
-    let mag = @model.cx_abs(r.voltages()[node].a())
+    let mag = @model.cx_abs(solved.voltages()[node].a())
     if !(mag > 0.0) {
       // a 相断开时该相电压为 0，控制律没有可读的量；继续按「欠压」升档
       // 会把档位推到上限，所以这里直接拒绝，不产出调档轨迹。
@@ -256,7 +377,7 @@ pub fn run_oltc(
       )
     }
     moves.push((cur.tap(), mag))
-    latest = Some(r)
+    latest = Some(solved)
     status = cur.status(mag)
     match status {
       InBand => {
