@@ -6,6 +6,7 @@
 
 ### Added
 
+- `dist::VoltageCriterion` 与最差相调档：判据可选 `PhaseA`（只看受控母线 a 相，旧行为）或 `WorstPhase`（取三相模长最小的一相）。新增 `run_oltc_zip_worst_phase`、`scan_taps_zip_worst_phase`，`run_oltc_with` 多一个判据参数，旧入口 `run_oltc` / `run_oltc_zip` / `scan_taps_zip` 行为不变。原实现只读 a 相，不平衡负荷下 a 相进带就停，b/c 相可能停在带外，且 a 相为 0 时直接报错、其余相无从上场。回归里不平衡算例（a 相 0.06+j0.02、b 相 0.52+j0.17、c 相 0.22+j0.07，目标 0.99 ± 0.01、每档 2%）：a 相判据停 0 档，最低相 0.975 仍在带外；最差相判据升到 1 档，最低相 0.996 进带。平衡算例下两种判据读数一致（浮点末位有差），某相断开时最差相判据照样报 `Control`。计数 100 → 103（四后端一致）。
 - `examples/web_demo` 与 `docs/demo`：`build_topology` + `sweep` 的结果打印成 `META` / `DATA`
   JSON 行，页面画柱状图与折线图。四个面板是四节点算例逐相电压幅值与 VUF（母线 3 的 VUF 0.1187%）、
   缺相支路三相电压（下游 b 相 0 pu、VUF 50%），以及两个带滑块的面板。
