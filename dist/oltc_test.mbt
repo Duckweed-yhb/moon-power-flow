@@ -445,3 +445,170 @@ test "tap scan rejects a plain line and a missing node" {
       }
   }
 }
+
+///|
+/// 不平衡馈线：a 相轻（0.06+j0.02）、b 相重（0.52+j0.17）、c 相居中。
+/// 受控母线三相电压因此拉开，a 相高于最低相约 0.02 p.u.。
+fn unbalanced_tx_net() -> @dist.DistNet raise {
+  let zt = @model.cx(0.03, 0.05)
+  let z3 = @dist.z3_diag(zt, zt, zt)
+  let tx = match @dist.TxSpec::new(1.0, z3) {
+    Ok(t) => t
+    Err(e) => fail(e)
+  }
+  let s = @dist.phasor(
+    @model.cx(0.06, 0.02),
+    @model.cx(0.52, 0.17),
+    @model.cx(0.22, 0.07),
+  )
+  @dist.DistNet::make(
+    [@dist.DistNode::make(1, @dist.Phasor::zero()), @dist.DistNode::make(2, s)],
+    [@dist.DistEdge::make_tx(1, 2, tx)],
+    1,
+    @dist.Phasor::balanced(1.0, 0.0),
+  )
+}
+
+///|
+/// 受控母线三相电压模长里最小的那一相。
+fn min_phase_mag(run : @dist.OltcRun, net : @dist.DistNet) -> Double raise {
+  let node = match net.find_index(run.oltc().node_id()) {
+    Some(k) => k
+    None => fail("controlled node missing from voltages")
+  }
+  let v = run.result().voltages()[node]
+  let mut worst = @model.cx_abs(v.a())
+  let vb = @model.cx_abs(v.b())
+  let vc = @model.cx_abs(v.c())
+  if vb < worst {
+    worst = vb
+  }
+  if vc < worst {
+    worst = vc
+  }
+  worst
+}
+
+///|
+/// 平衡算例下两种判据读数一致：最差相就是 a 相，读数只差在浮点末位。
+test "worst phase criterion matches a phase on a balanced feeder" {
+  let net = heavy_tx_net()
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  let oltc = match @dist.Oltc::new(2, 0, -6, 6, 0.02, 0.99, 0.01) {
+    Ok(x) => x
+    Err(e) => fail(e)
+  }
+  let zip = @model.Zip::constant_power()
+  let a = match @dist.scan_taps_zip(net, topo, oltc, zip, 1.0e-9, 100) {
+    Ok(x) => x
+    Err(e) => fail(e.describe())
+  }
+  let w = match
+    @dist.scan_taps_zip_worst_phase(net, topo, oltc, zip, 1.0e-9, 100) {
+    Ok(x) => x
+    Err(e) => fail(e.describe())
+  }
+  assert_eq(a.length(), w.length())
+  for i in 0..<a.length() {
+    assert_eq(a[i].0, w[i].0)
+    // 三相模长在浮点末位上有差异，取最小值后不是逐位相等
+    assert_true(oltc_near(a[i].1, w[i].1, 1.0e-12))
+  }
+}
+
+///|
+/// 不平衡算例：a 相判据在 0 档就停（a 相 0.997 进了 [0.98, 1.00]），
+/// 最低相却停在 0.975，仍在带外；最差相判据继续升一档，把最低相抬到
+/// 0.996，代价是 a 相被抬到 1.017。
+test "worst phase criterion pulls the lowest phase into band" {
+  let net = unbalanced_tx_net()
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  let oltc = match @dist.Oltc::new(2, 0, -5, 5, 0.02, 0.99, 0.01) {
+    Ok(x) => x
+    Err(e) => fail(e)
+  }
+  let zip = @model.Zip::constant_power()
+  let by_a = match @dist.run_oltc_zip(net, topo, oltc, zip, 1.0e-9, 100, 10) {
+    Ok(r) => r
+    Err(e) => fail(e.describe())
+  }
+  let by_w_run = @dist.run_oltc_zip_worst_phase(
+    net, topo, oltc, zip, 1.0e-9, 100, 10,
+  )
+  let by_w = match by_w_run {
+    Ok(r) => r
+    Err(e) => fail(e.describe())
+  }
+  // a 相判据：停 0 档，a 相进带，最低相留在带外
+  assert_true(by_a.reached_band())
+  assert_eq(by_a.oltc().tap(), 0)
+  assert_true(min_phase_mag(by_a, net) < 0.98)
+  // 最差相判据：多升一档，最低相进带
+  assert_true(by_w.reached_band())
+  assert_eq(by_w.oltc().tap(), 1)
+  let worst = min_phase_mag(by_w, net)
+  assert_true(worst > 0.98 && worst < 1.0)
+  // 档位差一档，其余量随之不同
+  assert_true(by_w.moves().length() > by_a.moves().length())
+}
+
+///|
+/// 最差相判据下某相断开同样拒绝：零电压不是「欠压」，按欠压升档会把档位
+/// 推到上限。
+test "worst phase criterion rejects an open phase" {
+  let zt = @model.cx(0.03, 0.05)
+  let z3 = @dist.z3_diag(zt, zt, zt)
+  let tx = match @dist.TxSpec::new(1.0, z3) {
+    Ok(t) => t
+    Err(e) => fail(e)
+  }
+  // b 相断开：a 相电压正常，最差相是 0
+  let sw = @dist.Switch::closed().open_phase(1)
+  let edge = @dist.DistEdge::make_tx(1, 2, tx).with_switch(sw)
+  let s = @model.cx(0.28, 0.09)
+  let net = @dist.DistNet::make(
+    [
+      @dist.DistNode::make(1, @dist.Phasor::zero()),
+      @dist.DistNode::make(2, @dist.Phasor::uniform(s)),
+    ],
+    [edge],
+    1,
+    @dist.Phasor::balanced(1.0, 0.0),
+  )
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  let oltc = match @dist.Oltc::new(2, 0, -6, 6, 0.02, 0.99, 0.01) {
+    Ok(x) => x
+    Err(e) => fail(e)
+  }
+  let run_r = @dist.run_oltc_zip_worst_phase(
+    net,
+    topo,
+    oltc,
+    @model.Zip::constant_power(),
+    1.0e-9,
+    40,
+    10,
+  )
+  match run_r {
+    Ok(run) =>
+      fail(
+        "open phase must not produce a tap plan, got " +
+        run.moves().length().to_string() +
+        " moves",
+      )
+    Err(e) =>
+      match e {
+        @dist.Control(msg) => assert_true(msg.contains("phase"))
+        @dist.Sweep(_) => fail("expected a control error, got a sweep error")
+      }
+  }
+}

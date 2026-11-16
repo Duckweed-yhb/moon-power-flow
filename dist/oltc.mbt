@@ -191,6 +191,71 @@ pub fn Oltc::lower_tap(self : Oltc) -> Oltc {
 }
 
 ///|
+/// 调压判据：看哪一相电压决定升降档。
+///
+/// - `PhaseA`：只看受控母线 a 相模长（旧行为）；
+/// - `WorstPhase`：取 a/b/c 三相模长里最小的那一相。不平衡负荷下 a 相可能在
+///   带内，另两相却已经掉出下界，只看 a 相就永远调不到。
+pub enum VoltageCriterion {
+  PhaseA
+  WorstPhase
+}
+
+///|
+pub fn VoltageCriterion::describe(self : VoltageCriterion) -> String {
+  match self {
+    PhaseA => "a-phase voltage"
+    WorstPhase => "worst phase voltage"
+  }
+}
+
+///|
+/// 按判据取受控母线的电压量。任一相模长为 0（该相断开）时控制律没有可读的
+/// 量，按输入错误拒绝，不产出调档轨迹。
+fn controlled_voltage(
+  v : Phasor,
+  criterion : VoltageCriterion,
+) -> Result[Double, OltcErr] {
+  let va = @model.cx_abs(v.a())
+  match criterion {
+    PhaseA =>
+      if va > 0.0 {
+        Ok(va)
+      } else {
+        Err(
+          Control(
+            "controlled a-phase voltage is " +
+            va.to_string() +
+            ", tap control is undefined when that phase is open",
+          ),
+        )
+      }
+    WorstPhase => {
+      let vb = @model.cx_abs(v.b())
+      let vc = @model.cx_abs(v.c())
+      let mut worst = va
+      if vb < worst {
+        worst = vb
+      }
+      if vc < worst {
+        worst = vc
+      }
+      if worst > 0.0 {
+        Ok(worst)
+      } else {
+        Err(
+          Control(
+            "controlled phase voltage is " +
+            worst.to_string() +
+            ", tap control is undefined when a phase is open",
+          ),
+        )
+      }
+    }
+  }
+}
+
+///|
 /// 一次调档迭代的结果：最终调压器、最后一次潮流解、是否进入目标区间、
 /// 每一步（档位, 受控相电压模长）轨迹、最终状态。
 pub struct OltcRun {
@@ -266,6 +331,33 @@ pub fn scan_taps_zip(
   tol : Double,
   max_iter : Int32,
 ) -> Result[Array[(Int32, Double)], OltcErr] {
+  scan_taps_zip_with(net, topo, oltc, zip, PhaseA, tol, max_iter)
+}
+
+///|
+/// 与 `scan_taps_zip` 相同，判据换成三相最差相：不平衡算例里能直接看出
+/// 「a 相还在带内、最低相已经出带」的那一段档位。
+pub fn scan_taps_zip_worst_phase(
+  net : DistNet,
+  topo : Topology,
+  oltc : Oltc,
+  zip : @model.Zip,
+  tol : Double,
+  max_iter : Int32,
+) -> Result[Array[(Int32, Double)], OltcErr] {
+  scan_taps_zip_with(net, topo, oltc, zip, WorstPhase, tol, max_iter)
+}
+
+///|
+fn scan_taps_zip_with(
+  net : DistNet,
+  topo : Topology,
+  oltc : Oltc,
+  zip : @model.Zip,
+  criterion : VoltageCriterion,
+  tol : Double,
+  max_iter : Int32,
+) -> Result[Array[(Int32, Double)], OltcErr] {
   let (node, pe) = match controlled_indices(net, topo, oltc.node_id()) {
     Ok(x) => x
     Err(e) => return Err(e)
@@ -285,7 +377,11 @@ pub fn scan_taps_zip(
       Ok(x) => x
       Err(e) => return Err(Sweep(e))
     }
-    out.push((tap, @model.cx_abs(r.voltages()[node].a())))
+    let mag = match controlled_voltage(r.voltages()[node], criterion) {
+      Ok(m) => m
+      Err(e) => return Err(e)
+    }
+    out.push((tap, mag))
     tap += 1
   }
   Ok(out)
@@ -306,7 +402,7 @@ pub fn run_oltc(
   max_iter : Int32,
   max_moves : Int32,
 ) -> Result[OltcRun, OltcErr] {
-  run_oltc_with(net, topo, oltc, None, tol, max_iter, max_moves)
+  run_oltc_with(net, topo, oltc, None, PhaseA, tol, max_iter, max_moves)
 }
 
 ///|
@@ -324,7 +420,35 @@ pub fn run_oltc_zip(
   max_iter : Int32,
   max_moves : Int32,
 ) -> Result[OltcRun, OltcErr] {
-  run_oltc_with(net, topo, oltc, Some(zip), tol, max_iter, max_moves)
+  run_oltc_with(net, topo, oltc, Some(zip), PhaseA, tol, max_iter, max_moves)
+}
+
+///|
+/// 与 `run_oltc_zip` 同一套控制律，判据换成三相最差相。
+///
+/// 只按 a 相调档时，a 相进带就停，b/c 相可能还留在带外；不平衡负荷下这种
+/// 「a 相达标、最低相未达标」的停位很常见。最差相判据会把最低那一相拉进带，
+/// 代价是别的相可能被抬到上界之上 - 这与实际 OLTC 靠一相（或三相平均）
+/// 动作时的取舍一致，调用方自己选口径。
+pub fn run_oltc_zip_worst_phase(
+  net : DistNet,
+  topo : Topology,
+  oltc : Oltc,
+  zip : @model.Zip,
+  tol : Double,
+  max_iter : Int32,
+  max_moves : Int32,
+) -> Result[OltcRun, OltcErr] {
+  run_oltc_with(
+    net,
+    topo,
+    oltc,
+    Some(zip),
+    WorstPhase,
+    tol,
+    max_iter,
+    max_moves,
+  )
 }
 
 ///|
@@ -334,6 +458,7 @@ fn run_oltc_with(
   topo : Topology,
   oltc : Oltc,
   zip : @model.Zip?,
+  criterion : VoltageCriterion,
   tol : Double,
   max_iter : Int32,
   max_moves : Int32,
@@ -364,17 +489,9 @@ fn run_oltc_with(
       Ok(x) => x
       Err(e) => return Err(Sweep(e))
     }
-    let mag = @model.cx_abs(solved.voltages()[node].a())
-    if !(mag > 0.0) {
-      // a 相断开时该相电压为 0，控制律没有可读的量；继续按「欠压」升档
-      // 会把档位推到上限，所以这里直接拒绝，不产出调档轨迹。
-      return Err(
-        Control(
-          "controlled a-phase voltage is " +
-          mag.to_string() +
-          ", tap control is undefined when that phase is open",
-        ),
-      )
+    let mag = match controlled_voltage(solved.voltages()[node], criterion) {
+      Ok(m) => m
+      Err(e) => return Err(e)
     }
     moves.push((cur.tap(), mag))
     latest = Some(solved)
