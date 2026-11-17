@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `dist::run_oltc_with` 调档次数用尽时返回的档位与电压不同档：旧实现最后一步 `raise_tap` / `lower_tap`
+  做完就直接退出循环，`OltcRun::oltc()` 报的是还没解过潮流的新档，`result()` 与 `moves` 末项却还是旧档读数。
+  改为「解当前档 → 记录读数 → 判断状态 → 再决定是否调档」，`max_moves` 明确为允许的调档次数，
+  `moves` 最多 `max_moves + 1` 条，返回档位一定与末条读数同档；`max_moves = 0` 也会解一次，
+  不再报 `Control("no sweep produced a result")`。补回归「tap budget exhaustion reports the tap that was solved」
+  （重载变压器，目标 1.03 ± 0.01，只给一次调档机会，期望解 0 档与 1 档两次、停在 `RaiseTap`）。
+  计数 103 → 104，四后端一致。发布包 0.2.1 早于此修复，随下一版本带上。
+
 ## [0.2.1] - 2026-11-17
 
 ### Added

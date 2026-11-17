@@ -91,7 +91,7 @@ The artifact sits next to the page and needs no CDN, so opening `docs/demo/index
 
 ## Verified (local runs, 2026-11-15)
 
-- `moon test` on wasm / wasm-gc / js / native: **103/103**, consistent across all four backends.
+- `moon test` on wasm / wasm-gc / js / native: **104/104**, consistent across all four backends.
 - `moon check --deny-warn` on all four targets: 0 warnings.
 - Transformer comparison: k=1 matches a plain line bit-for-bit; k=1.05 raises secondary voltage; larger leakage lowers it; transformer feeder active-power balance holds. A transformer placed behind a line keeps the balance too, and the upstream line current equals `k` times the secondary current. OLTC: invalid config rejected, tap-ratio mapping correct, limits clamped, closed loop does not worsen the target, open controlled phase reports an error instead of exhausting the move budget. ZIP regulation: a constant-power ZIP reproduces `run_oltc`'s final tap, move trace and stop state bit for bit; a mixed load (alpha=0.5 beta=0.2 gamma=0.3) still lands in band; at the same tap a constant-impedance load draws less below nominal (higher voltage than constant power) and more above nominal (lower voltage), so the correction flips sign across rated voltage; the scan covers all 13 taps from -6 to +6 with voltage rising monotonically; a plain line and a missing node both report `Control` on the scan path too. Open phase: open phase current/voltage zero, closed phases normal, balance on closed phases.
 - Combined case (second half of the same `dist_demo` output): line → transformer → open-phase line, node 3 is the OLTC controlled bus with target `0.97 ± 0.005 pu`. The initial `0.9946 pu` sits above the band, so the tap walk is `tap 0: 0.99455 > tap -1: 0.98203 > tap -2: 0.96950`, settling at `tap -2` (ratio `0.975`) inside the band; in the same solution `|I_b| = 0`, `|V4_b| = 0`, `|V4_a| = 0.96867 pu`. The transformer ratio and the open-phase switch do not mask each other.
@@ -100,7 +100,7 @@ The artifact sits next to the page and needs no CDN, so opening `docs/demo/index
 - Tap sweep (end of the same `dist_demo` output): on the two-node `1 -transformer-> 2` network, taps run from −4 to +4 at 1.25% per step with only the ratio changed. Bus 2 `|V2_a|` climbs monotonically from `0.94661 pu` at `tap -4` through `0.98424` at `tap -1` and `0.99678` at `tap 0` to `1.04694 pu` at `tap 4` - about 1.27% voltage per 1.25% ratio step, so both the direction and the size of regulation are measured rather than asserted. The OLTC segment shows how to reach a target; this segment shows the tap-to-voltage mapping.
 - Independent baseline: the 24 voltage components of the four-node case are computed by `scripts/gen_dist_fixtures.py` (an independent Python backward/forward sweep) and hard-coded in `dist/fixtures_test.mbt`; they are not taken from this library's output.
 - Single-phase side: the three-bus GS case converges in 8 sweeps; expected Ybus values are hand-calculated.
-- Published: `Duckweed/moon-power-flow@0.2.1` reached mooncakes on 2026-11-17 (Latest 0.2.1, MIT). Native re-run on 2026-11-17 is 103/103; the four-backend 103/103 figure was measured locally on 2026-11-16.
+- Published: `Duckweed/moon-power-flow@0.2.1` reached mooncakes on 2026-11-17 (Latest 0.2.1, MIT). Native re-run on 2026-11-17 after the tap-budget fix is 104/104 on all four backends; the published 0.2.1 package contains the 103 cases measured on 2026-11-16.
 
 ## Planned (not implemented this round, not counted as delivered)
 

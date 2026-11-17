@@ -14,7 +14,7 @@
 | 项 | 申报书 | 现在 |
 |---|---|---|
 | 版本 | 0.1.3 | **0.2.1**（mooncakes 最新，2026-11-17 发布） |
-| 单测 | 29 | **103**（四个后端各 103） |
+| 单测 | 29 | **104**（四个后端各 104） |
 | 后端覆盖 | wasm-gc / native / js 三后端 | **wasm / wasm-gc / js / native 四后端** |
 | commits | 29 | 89（本地 main 与 origin/main 同步） |
 | 包 | `dist/` `model/` `ybus/` `solver/` `cases/` | 同左（包结构未变，包内新增模块） |
@@ -52,7 +52,7 @@ PV 节点与无功限值、…」；同段第 3 条还提到不含「负荷静�
 
 ```bash
 moon check --deny-warn --target native     # 四个目标逐个跑，下同
-moon test --target native                  # 103/103
+moon test --target native                  # 104/104
 moon run examples/dist_demo --target native    # 四节点不平衡算例
 moon run examples/scale_demo --target native   # 4 → 5000 节点
 moon run examples/reject_demo --target native  # 每条拒绝路径
