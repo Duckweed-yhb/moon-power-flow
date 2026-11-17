@@ -95,3 +95,19 @@ pub fn root_injection_active(net : DistNet, r : SweepOk) -> Double {
   }
   sum
 }
+
+///|
+/// Actual served constant-power demand, excluding root and disconnected phases.
+/// The result must come from the same network. Nominal demand remains available
+/// through load_demand_active; ZIP demand uses load_demand_active_zip.
+pub fn served_load_demand_active(net : DistNet, r : SweepOk) -> Double {
+  let mut total = 0.0
+  for i in 0..<net.node_count() {
+    let node = net.node_at(i)
+    if node.id() != net.root_id() {
+      let s = node.s().apply_switch(r.supplied[i])
+      total = total + s.a().re + s.b().re + s.c().re
+    }
+  }
+  total
+}

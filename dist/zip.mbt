@@ -36,7 +36,11 @@ pub fn load_demand_active_zip(
   while i < net.node_count() && i < v.length() {
     let node = net.node_at(i)
     if node.id() != root_id {
-      let s_eff = zip_adjust_load(node.s(), v[i], zip)
+      let s_eff = zip_adjust_load(
+        node.s().apply_switch(r.supplied[i]),
+        v[i],
+        zip,
+      )
       sum = sum + s_eff.a().re + s_eff.b().re + s_eff.c().re
     }
     i += 1

@@ -51,4 +51,11 @@ test "probe upstream open phase remains dead downstream" {
   }
   assert_eq(@model.cx_abs(zr.voltages()[2].b()), 0.0)
   assert_eq(@model.cx_abs(zr.branch_currents()[1].b()), 0.0)
+  assert_true((@dist.served_load_demand_active(net, r) - 0.02).abs() < 1.0e-12)
+  assert_true(
+    (@dist.root_injection_active(net, zr) -
+    @dist.total_loss_active(net, zr) -
+    @dist.load_demand_active_zip(net, zr, zip)).abs() <
+    1.0e-8,
+  )
 }

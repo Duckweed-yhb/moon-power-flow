@@ -22,6 +22,7 @@ pub struct SweepOk {
   branch_currents : Array[Phasor]
   max_dv : Double
   trace : Array[Double]
+  supplied : Array[Switch]
 }
 
 ///|
@@ -272,7 +273,14 @@ fn sweep_with_zip(
     last_dv = max_dv
     trace.push(max_dv)
     if max_dv < tol {
-      return Ok({ iter, voltages: v, branch_currents: i_branch, max_dv, trace, })
+      return Ok({
+        iter,
+        voltages: v,
+        branch_currents: i_branch,
+        max_dv,
+        trace,
+        supplied,
+      })
     }
   }
   Err(SweepErr::NotConverged(max_iter, last_dv))

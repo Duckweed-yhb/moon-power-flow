@@ -146,3 +146,5 @@ The artifact sits next to the page and needs no CDN, so opening `docs/demo/index
 ## License
 
 MIT; see `LICENSE`.
+
+Actual served constant-power demand is available through `served_load_demand_active(net, result)`. `load_demand_active(net)` retains nominal demand semantics. `load_demand_active_zip` now excludes disconnected phases using the supply masks stored by the solver, including upstream outages. Use a result from the same network.
