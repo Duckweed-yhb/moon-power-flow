@@ -16,7 +16,7 @@
 | 版本 | 0.1.3 | **0.2.1**（mooncakes 最新，2026-11-17 发布） |
 | 单测 | 29 | **105**（native / js / wasm-gc 各 105，wasm 未重跑） |
 | 后端覆盖 | wasm-gc / native / js 三后端 | **wasm / wasm-gc / js / native 四后端** |
-| commits | 29 | 93（本地 main 与 origin/main 同步） |
+| commits | 29 | 持续追加（提交数以 `git log` 为准；本地 main 与 origin/main 同步） |
 | 包 | `dist/` `model/` `ybus/` `solver/` `cases/` | 同左（包结构未变，包内新增模块） |
 | 示例 | `examples/demo`、`examples/dist_demo` | 增加 **`examples/scale_demo`**、**`examples/reject_demo`**、**`examples/oltc_zip_demo`**、**`examples/web_demo`** |
 | CI | check/build/test（wasm-gc）+ native/js 本地实测 | 三目标矩阵 `check --deny-warn` + build + test，三个示例真跑，发布元数据校验 |
