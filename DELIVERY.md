@@ -13,12 +13,12 @@
 
 | 项 | 申报书 | 现在 |
 |---|---|---|
-| 版本 | 0.1.3 | **0.2.0**（mooncakes 最新） |
+| 版本 | 0.1.3 | **0.2.1**（mooncakes 最新，2026-11-17 发布） |
 | 单测 | 29 | **103**（四个后端各 103） |
 | 后端覆盖 | wasm-gc / native / js 三后端 | **wasm / wasm-gc / js / native 四后端** |
-| commits | 29 | 58 |
+| commits | 29 | 89（本地 main 与 origin/main 同步） |
 | 包 | `dist/` `model/` `ybus/` `solver/` `cases/` | 同左（包结构未变，包内新增模块） |
-| 示例 | `examples/demo`、`examples/dist_demo` | 增加 **`examples/scale_demo`**、**`examples/reject_demo`** |
+| 示例 | `examples/demo`、`examples/dist_demo` | 增加 **`examples/scale_demo`**、**`examples/reject_demo`**、**`examples/oltc_zip_demo`**、**`examples/web_demo`** |
 | CI | check/build/test（wasm-gc）+ native/js 本地实测 | 三目标矩阵 `check --deny-warn` + build + test，三个示例真跑，发布元数据校验 |
 
 ## 二、申报之后新增了什么
@@ -65,7 +65,7 @@ moon run examples/reject_demo --target native  # 每条拒绝路径
 
 ## 五、发布状态
 
-- mooncakes：`Duckweed/moon-power-flow@0.2.0`（Latest；`Zip` 从 `@dist.Zip` 移到
+- mooncakes：`Duckweed/moon-power-flow@0.2.1`（Latest，2026-11-17；`Zip` 从 `@dist.Zip` 移到
   `@model.Zip`，是 0.x 允许的破坏性变更）。
 - GitHub tag 只到 **v0.1.3**，落后 11 个已发布版本。**以 mooncakes 上的版本为准**。
 

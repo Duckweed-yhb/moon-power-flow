@@ -14,7 +14,7 @@ Local toolchain: moon 0.1.20261104 (moonc v0.10.20+65efd5b93). Run commands from
 
 | Purpose | Command |
 |---|---|
-| Add to another MoonBit project | `moon add Duckweed/moon-power-flow@0.2.0` |
+| Add to another MoonBit project | `moon add Duckweed/moon-power-flow@0.2.1` |
 | Static check (native, warnings as errors) | `moon check --target native --deny-warn` |
 | Run tests (native) | `moon test --target native` |
 | Static check (wasm-gc) | `moon check --target wasm-gc --deny-warn` |
@@ -100,7 +100,7 @@ The artifact sits next to the page and needs no CDN, so opening `docs/demo/index
 - Tap sweep (end of the same `dist_demo` output): on the two-node `1 -transformer-> 2` network, taps run from −4 to +4 at 1.25% per step with only the ratio changed. Bus 2 `|V2_a|` climbs monotonically from `0.94661 pu` at `tap -4` through `0.98424` at `tap -1` and `0.99678` at `tap 0` to `1.04694 pu` at `tap 4` - about 1.27% voltage per 1.25% ratio step, so both the direction and the size of regulation are measured rather than asserted. The OLTC segment shows how to reach a target; this segment shows the tap-to-voltage mapping.
 - Independent baseline: the 24 voltage components of the four-node case are computed by `scripts/gen_dist_fixtures.py` (an independent Python backward/forward sweep) and hard-coded in `dist/fixtures_test.mbt`; they are not taken from this library's output.
 - Single-phase side: the three-bus GS case converges in 8 sweeps; expected Ybus values are hand-calculated.
-- Published: `Duckweed/moon-power-flow@0.2.0` reached mooncakes on 2026-11-10 (Latest 0.2.0, MIT). The 2026-11-11 local 73/73 is a historical record; on 2026-11-13 all four backends were re-run at 89/89 with strict `--deny-warn` checks passing.
+- Published: `Duckweed/moon-power-flow@0.2.1` reached mooncakes on 2026-11-17 (Latest 0.2.1, MIT). Native re-run on 2026-11-17 is 103/103; the four-backend 103/103 figure was measured locally on 2026-11-16.
 
 ## Planned (not implemented this round, not counted as delivered)
 

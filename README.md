@@ -13,7 +13,7 @@
 > ZIP 只含恒功率 / 恒电流 / 恒阻抗三项静特性。单相侧只做 1 Slack + 若干 PQ（另有 ZIP 变体）。
 > 计划项在「计划中」一节，不写成已实现。
 
-> 已发布：`Duckweed/moon-power-flow@0.2.0`（2026-11-10），`moon add Duckweed/moon-power-flow` 可安装。
+> 已发布：`Duckweed/moon-power-flow@0.2.1`（2026-11-17），`moon add Duckweed/moon-power-flow` 可安装。
 
 > 交付说明（申报书 vs 现状、与「明确不做」的偏差、验证证据分级）：[DELIVERY.md](./DELIVERY.md)。
 
@@ -24,7 +24,7 @@
 
 | 目的 | 命令 |
 |---|---|
-| 安装到其他 MoonBit 项目 | `moon add Duckweed/moon-power-flow@0.2.0` |
+| 安装到其他 MoonBit 项目 | `moon add Duckweed/moon-power-flow@0.2.1` |
 | 静态检查（native，警告即错误） | `moon check --target native --deny-warn` |
 | 运行测试（native） | `moon test --target native` |
 | 静态检查（wasm-gc） | `moon check --target wasm-gc --deny-warn` |
@@ -137,7 +137,7 @@ python -m http.server 8765             # 仓库根目录执行，然后打开 ht
   （Python 独立实现前推回代）算出并写死在 `dist/fixtures_test.mbt`，
   不取自本库输出。
 - 单相侧：三节点算例 GS 8 次扫描收敛，Ybus 期望值由手算给出。
-- 发布：`Duckweed/moon-power-flow@0.2.0` 已于 2026-11-10 上线 mooncakes（Latest 0.2.0，MIT）；2026-11-11 复跑四个后端 `moon test` 均 73/73 为当时历史记录，本轮 2026-11-13 已按 89/89 复跑。
+- 发布：`Duckweed/moon-power-flow@0.2.1` 已于 2026-11-17 上线 mooncakes（Latest 0.2.1，MIT）；四个后端本机 103/103，2026-11-17 复跑 native 103。
 
 ## 计划中（本轮未实现，不计入已交付）
 

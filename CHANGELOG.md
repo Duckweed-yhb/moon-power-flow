@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-17
+
 ### Added
 
 - `dist::VoltageCriterion` 与最差相调档：判据可选 `PhaseA`（只看受控母线 a 相，旧行为）或 `WorstPhase`（取三相模长最小的一相）。新增 `run_oltc_zip_worst_phase`、`scan_taps_zip_worst_phase`，`run_oltc_with` 多一个判据参数，旧入口 `run_oltc` / `run_oltc_zip` / `scan_taps_zip` 行为不变。原实现只读 a 相，不平衡负荷下 a 相进带就停，b/c 相可能停在带外，且 a 相为 0 时直接报错、其余相无从上场。回归里不平衡算例（a 相 0.06+j0.02、b 相 0.52+j0.17、c 相 0.22+j0.07，目标 0.99 ± 0.01、每档 2%）：a 相判据停 0 档，最低相 0.975 仍在带外；最差相判据升到 1 档，最低相 0.996 进带。平衡算例下两种判据读数一致（浮点末位有差），某相断开时最差相判据照样报 `Control`。计数 100 → 103（四后端一致）。
