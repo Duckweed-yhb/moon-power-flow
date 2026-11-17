@@ -186,6 +186,23 @@ fn sweep_with_zip(
   let parent_edge = topo.parent_edge()
   let parent = topo.parent()
   let children = topo.children()
+  // A closed downstream switch cannot restore a phase opened upstream.
+  let supplied : Array[Switch] = []
+  for _ in 0..<n {
+    supplied.push(Switch::closed())
+  }
+  for u in order {
+    if u != root {
+      let upstream = supplied[parent[u]]
+      let edge_switch = net.edge_at(parent_edge[u]).sw()
+      supplied[u] = {
+        a: upstream.a() && edge_switch.a(),
+        b: upstream.b() && edge_switch.b(),
+        c: upstream.c() && edge_switch.c(),
+      }
+    }
+    v[u] = v[u].apply_switch(supplied[u])
+  }
   let mut iter = 0
   let mut last_dv = 1.0
   let trace : Array[Double] = []
@@ -194,7 +211,11 @@ fn sweep_with_zip(
     // 1. 回代：叶子到根
     for u in rev {
       if u != root {
-        let i_load = load_current(net.node_at(u).s(), v[u], zip)
+        let i_load = load_current(
+          net.node_at(u).s().apply_switch(supplied[u]),
+          v[u],
+          zip,
+        )
         let mut total = i_load
         for ch in children[u] {
           // 变压器支路存的是副边侧电流 I_sec，父节点在**原边**，累加时要按
@@ -212,7 +233,7 @@ fn sweep_with_zip(
         }
         // 断开相不参与回路：该相支路电流置零。
         let pe = parent_edge[u]
-        total = total.apply_switch(net.edge_at(pe).sw())
+        total = total.apply_switch(supplied[u])
         i_branch[pe] = total
       }
     }
@@ -232,7 +253,7 @@ fn sweep_with_zip(
           (e.z(), v[parent[u]])
         }
         let drop = z.mul(i_branch[pe])
-        let v_new = base.sub(drop).apply_switch(e.sw())
+        let v_new = base.sub(drop).apply_switch(supplied[u])
         let dv = v_new.sub(v[u]).max_abs()
         // NaN 必须先抓：`NaN > max_dv` 恒为 false，否则这一轮的 max_dv 会停在 0，
         // 下一行就把「全是 NaN」判成收敛。

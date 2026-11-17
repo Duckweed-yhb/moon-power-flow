@@ -187,7 +187,10 @@ test "tap budget exhaustion reports the tap that was solved" {
       assert_true(!run.reached_band())
       match run.stopped() {
         @dist.RaiseTap => ()
-        s => fail("expected RaiseTap after the budget ran out, got " + s.describe())
+        s =>
+          fail(
+            "expected RaiseTap after the budget ran out, got " + s.describe(),
+          )
       }
     }
     Err(e) => fail(e.describe())
