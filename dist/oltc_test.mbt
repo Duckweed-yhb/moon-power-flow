@@ -163,6 +163,38 @@ test "oltc driver closes the loop without worsening the target" {
 }
 
 ///|
+/// 调档次数用尽时，返回的调压器必须是最后一次真正解过潮流的那个档位。
+/// 旧实现最后一次 raise/lower 后直接退出循环，`oltc()` 报的是没解过的新档，
+/// `result()` 却是旧档的电压，两者对不上。
+test "tap budget exhaustion reports the tap that was solved" {
+  let net = heavy_tx_net()
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  // 目标 1.03、死区 ±0.01：0 档 0.98686、升一档约 1.007，都还在带外，
+  // 需要第二次调档，正好卡在只给一次机会的边界上。
+  let oltc = match @dist.Oltc::new(2, 0, -6, 6, 0.02, 1.03, 0.01) {
+    Ok(x) => x
+    Err(e) => fail(e)
+  }
+  // 只给一次调档机会：允许解两次（升档前后各一次），不能报没解过的新档。
+  match @dist.run_oltc(net, topo, oltc, 1.0e-9, 100, 1) {
+    Ok(run) => {
+      let moves = run.moves()
+      assert_eq(moves.length(), 2)
+      assert_eq(run.oltc().tap(), moves[1].0)
+      assert_true(!run.reached_band())
+      match run.stopped() {
+        @dist.RaiseTap => ()
+        s => fail("expected RaiseTap after the budget ran out, got " + s.describe())
+      }
+    }
+    Err(e) => fail(e.describe())
+  }
+}
+
+///|
 /// 受控支路不是变压器 / 受控节点不存在：控制层结构化报错，不 panic。
 test "oltc rejects a plain-line feeder and a missing node" {
   let z = @model.cx(0.01, 0.02)

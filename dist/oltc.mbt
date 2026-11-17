@@ -394,6 +394,10 @@ fn scan_taps_zip_with(
 /// 受控母线必须挂在某条变压器支路上游；拓扑与网络来自同一次 `build_topology`。
 /// 控制层输入不合法（节点不存在、支路不是变压器）返回 `Err(String)`；
 /// 潮流本身失败透传 `SweepErr`。
+///
+/// `max_moves` 是允许的调档次数：驱动每到一档都解一次潮流，所以 `moves` 最多
+/// `max_moves + 1` 条，返回的 `oltc` 一定与最后一条读数同档；次数用完仍没进带时
+/// `stopped` 保留最后一次的判断方向（`RaiseTap` / `LowerTap`），表示还想调但没额度。
 pub fn run_oltc(
   net : DistNet,
   topo : Topology,
@@ -476,8 +480,12 @@ fn run_oltc_with(
   let mut latest : SweepOk? = None
   let mut reached = false
   let mut status = InBand
-  let mut move_no = 0
-  while move_no < max_moves {
+  // `max_moves` 是允许的调档次数，不是求解次数：每到一档都要解一次潮流，
+  // 所以最多求解 `max_moves + 1` 次。先解、再判断、最后才决定是否调档，
+  // 保证返回的 `oltc` 永远是最后一次解过潮的那个档位。
+  let mut changes = 0
+  let mut done = false
+  while !done {
     let base = net.edge_at(pe)
     edges[pe] = base.with_ratio(cur.ratio())
     let net2 = DistNet::make(net.nodes(), edges, net.root_id(), net.v_root())
@@ -499,14 +507,25 @@ fn run_oltc_with(
     match status {
       InBand => {
         reached = true
-        break
+        done = true
       }
-      AtUpperLimit => break
-      AtLowerLimit => break
-      RaiseTap => cur = cur.raise_tap()
-      LowerTap => cur = cur.lower_tap()
+      AtUpperLimit => done = true
+      AtLowerLimit => done = true
+      RaiseTap =>
+        if changes >= max_moves {
+          done = true
+        } else {
+          cur = cur.raise_tap()
+          changes += 1
+        }
+      LowerTap =>
+        if changes >= max_moves {
+          done = true
+        } else {
+          cur = cur.lower_tap()
+          changes += 1
+        }
     }
-    move_no += 1
   }
   let result = match latest {
     Some(r) => r
