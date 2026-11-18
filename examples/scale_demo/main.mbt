@@ -7,9 +7,10 @@
 ///
 /// 运行：`moon run examples/scale_demo --target native`
 fn build_chain(n : Int32) -> @dist.DistNet {
-  let per_seg = @model.cx(0.02 / n.to_double(), 0.04 / n.to_double())
+  let segments = (n - 1).to_double()
+  let per_seg = @model.cx(0.02 / segments, 0.04 / segments)
   let z3 = @dist.z3_diag(per_seg, per_seg, per_seg)
-  let per_node = @model.cx(0.3 / (n - 1).to_double(), 0.1 / (n - 1).to_double())
+  let per_node = @model.cx(0.3 / segments, 0.1 / segments)
   let nodes : Array[@dist.DistNode] = []
   let edges : Array[@dist.DistEdge] = []
   let mut i = 1
@@ -29,28 +30,13 @@ fn build_chain(n : Int32) -> @dist.DistNet {
 }
 
 ///|
-fn min_magnitude(v : Array[@dist.Phasor]) -> Double {
-  let mut m = 1.0e9
-  for p in v {
-    let a = @model.cx_abs(p.a())
-    if a < m {
-      m = a
-    }
-  }
-  m
-}
-
-///|
-fn main {
+fn main raise {
   println("nodes\tsweeps\tmax_dV\t\tloss(pu)\tdemand(pu)\tmin|V|")
   for n in [4, 10, 50, 200, 500, 1000, 2000, 5000] {
     let net = build_chain(n)
     let topo = match @dist.build_topology(net) {
       Ok(t) => t
-      Err(e) => {
-        println(n.to_string() + "\ttopology error: " + e.describe())
-        continue
-      }
+      Err(e) => fail(n.to_string() + "\ttopology error: " + e.describe())
     }
     match @dist.sweep(net, topo, 1.0e-9, 2000) {
       Ok(r) =>
@@ -65,9 +51,9 @@ fn main {
           "\t" +
           @dist.load_demand_active(net).to_string() +
           "\t" +
-          min_magnitude(r.voltages()).to_string(),
+          @dist.voltage_extremes(r).unwrap().0.to_string(),
         )
-      Err(e) => println(n.to_string() + "\tnot converged: " + e.describe())
+      Err(e) => fail(n.to_string() + "\tsweep error: " + e.describe())
     }
   }
 }
