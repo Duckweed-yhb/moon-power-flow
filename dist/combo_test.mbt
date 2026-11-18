@@ -155,3 +155,18 @@ test "remote sensing raises tap to compensate for the downstream line drop" {
     is Err(@dist.OltcErr::Control(_)),
   )
 }
+
+///|
+test "a narrow deadband reports repeated reversal only after returning to a tap" {
+  let net = @dist.case_tx_oltc_open()
+  let topo = combo_topology(net)
+  let oltc = @dist.Oltc::new(3, 0, -8, 8, 0.0125, 0.988, 0.001).unwrap()
+  for budget in [0, 1, 2, 3] {
+    let run = match @dist.run_oltc(net, topo, oltc, 1.0e-12, 100, budget) {
+      Ok(r) => r
+      Err(e) => fail(e.describe())
+    }
+    assert_false(run.reached_band())
+    assert_eq(run.tap_hunting(), budget >= 2)
+  }
+}

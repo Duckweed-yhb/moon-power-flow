@@ -1,6 +1,6 @@
 # moon-power-flow
 
-> Local verification (2026-11-18): native, js, wasm-gc and wasm each pass 116/116 tests.
+> Local verification (2026-11-19): native, js, wasm-gc and wasm each pass 117/117 tests.
 
 [中文](./README.md) · English
 
@@ -9,6 +9,8 @@ A pure-MoonBit **three-phase unbalanced distribution-network backward/forward sw
 A **single-phase balanced Gauss-Seidel (GS) solver** is kept in the same repository as a comparison baseline, to show what the balanced assumption misses under the same network parameters. The two lines are separate packages with separate tests.
 
 > Scope note: the three-phase side covers "one slack (substation head) + radial tree topology"; it excludes meshed networks and PV nodes. The neutral wire is a first-order approximation only (a uniform or per-edge neutral conductor impedance gives the neutral-point displacement), not a full three-phase four-wire model; ZIP covers only the three static characteristics (constant power / current / impedance). The single-phase side models one Slack plus several PQ nodes (plus a ZIP variant). Planned items are listed under "Planned" and are not claimed as implemented.
+
+After a closed-loop tap run, `run.tap_hunting()` reports whether the last three solved positions follow A–B–A. Inspect `run.moves()` for the voltages at those taps.
 
 ## Quick start
 
@@ -93,7 +95,7 @@ The artifact sits next to the page and needs no CDN, so opening `docs/demo/index
 
 ## Verified (local runs, 2026-11-15)
 
-- Current working tree: native, js, wasm and wasm-gc each pass 116/116.
+- Current working tree: native, js, wasm and wasm-gc each pass 117/117.
 - This round: `moon check --target native --deny-warn` passed.
 - Transformer comparison: k=1 matches a plain line bit-for-bit; k=1.05 raises secondary voltage; larger leakage lowers it; transformer feeder active-power balance holds. A transformer placed behind a line keeps the balance too, and the upstream line current equals `k` times the secondary current. OLTC: invalid config rejected, tap-ratio mapping correct, limits clamped, closed loop does not worsen the target, open controlled phase reports an error instead of exhausting the move budget. ZIP regulation: a constant-power ZIP reproduces `run_oltc`'s final tap, move trace and stop state bit for bit; a mixed load (alpha=0.5 beta=0.2 gamma=0.3) still lands in band; at the same tap a constant-impedance load draws less below nominal (higher voltage than constant power) and more above nominal (lower voltage), so the correction flips sign across rated voltage; the scan covers all 13 taps from -6 to +6 with voltage rising monotonically; a plain line and a missing node both report `Control` on the scan path too. Open phase: open phase current/voltage zero, closed phases normal, balance on closed phases.
 - Combined case (second half of the same `dist_demo` output): line → transformer → open-phase line, node 3 is the OLTC controlled bus with target `0.97 ± 0.005 pu`. The initial `0.9946 pu` sits above the band, so the tap walk is `tap 0: 0.99455 > tap -1: 0.98203 > tap -2: 0.96950`, settling at `tap -2` (ratio `0.975`) inside the band; in the same solution `|I_b| = 0`, `|V4_b| = 0`, `|V4_a| = 0.96867 pu`. The transformer ratio and the open-phase switch do not mask each other.

@@ -296,6 +296,16 @@ pub fn OltcRun::moves(self : OltcRun) -> Array[(Int32, Double)] {
 }
 
 ///|
+/// True when the last three solved positions return to the first tap (A-B-A).
+/// With a fixed network this identifies a deadband between adjacent tap voltages.
+pub fn OltcRun::tap_hunting(self : OltcRun) -> Bool {
+  let n = self.moves.length()
+  n >= 3 &&
+  self.moves[n - 1].0 == self.moves[n - 3].0 &&
+  self.moves[n - 1].0 != self.moves[n - 2].0
+}
+
+///|
 pub fn OltcRun::stopped(self : OltcRun) -> OltcStatus {
   self.stopped
 }
