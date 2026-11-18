@@ -302,6 +302,9 @@ fn controlled_indices(
         Control("controlled node " + node_id.to_string() + " not found"),
       )
   }
+  if topo.parent_edge().length() != net.node_count() {
+    return Err(Sweep(TopologyMismatch))
+  }
   let pe = topo.parent_edge()[node]
   if pe < 0 || pe >= net.edge_count() {
     return Err(Control("controlled node has no parent edge"))

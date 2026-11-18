@@ -688,3 +688,34 @@ test "single-tap scan terminates at both Int32 endpoints" {
     }
   }
 }
+
+///|
+test "OLTC rejects topology from a smaller network before reading parent edge" {
+  let net = heavy_tx_net()
+  let single = @dist.DistNet::make(
+    [net.node_at(0)],
+    [],
+    net.root_id(),
+    net.v_root(),
+  )
+  let topo = match @dist.build_topology(single) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  let oltc = @dist.Oltc::new(2, 0, -1, 1, 0.01, 1.0, 0.01).unwrap()
+  assert_true(
+    @dist.run_oltc(net, topo, oltc, 1.0e-9, 100, 4)
+    is Err(@dist.OltcErr::Sweep(@dist.SweepErr::TopologyMismatch)),
+  )
+  assert_true(
+    @dist.scan_taps_zip(
+      net,
+      topo,
+      oltc,
+      @model.Zip::constant_power(),
+      1.0e-9,
+      100,
+    )
+    is Err(@dist.OltcErr::Sweep(@dist.SweepErr::TopologyMismatch)),
+  )
+}
