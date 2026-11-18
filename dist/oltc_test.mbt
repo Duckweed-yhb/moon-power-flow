@@ -651,3 +651,36 @@ test "worst phase criterion rejects an open phase" {
       }
   }
 }
+
+///|
+test "single-tap scan terminates at both Int32 endpoints" {
+  let net = heavy_tx_net()
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  for tap in [-2147483648, 2147483647] {
+    let regulator = match
+      @dist.Oltc::new(2, tap, tap, tap, 1.0e-12, 1.0, 0.01) {
+      Ok(r) => r
+      Err(e) => fail(e)
+    }
+    assert_eq(regulator.raise_tap().tap(), tap)
+    assert_eq(regulator.lower_tap().tap(), tap)
+    match
+      @dist.scan_taps_zip(
+        net,
+        topo,
+        regulator,
+        @model.Zip::constant_power(),
+        1.0e-9,
+        100,
+      ) {
+      Ok(rows) => {
+        assert_eq(rows.length(), 1)
+        assert_eq(rows[0].0, tap)
+      }
+      Err(e) => fail(e.describe())
+    }
+  }
+}
