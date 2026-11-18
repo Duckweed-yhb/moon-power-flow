@@ -68,7 +68,7 @@ pub fn cx_scale(a : Cx, k : Double) -> Cx {
 ///|
 /// 模长 |z|。
 pub fn cx_abs(a : Cx) -> Double {
-  (a.re * a.re + a.im * a.im).sqrt()
+  @math.hypot(a.re, a.im)
 }
 
 ///|
