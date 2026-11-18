@@ -82,6 +82,7 @@ moon-power-flow/
 - 变压器支路（`dist/model.mbt` 的 `TxSpec`）：非额定变比 `k = V_sec/V_pri` + 归算到副边的漏阻抗 3x3。k=1 时模型退化成同阻抗普通线路；前推 `V_sec = k·V_pri − Z_t·I_sec`，原边电流 `I_pri = k·I_sec`，复功率守恒，损耗按副边漏阻抗与副边电流算。原边折算对挂在线路下游的变压器同样生效（馈线 → 变压器 → 负荷），不只是直接挂在根边上的那种接法。不建励磁支路、不建组别相移。
 - OLTC 分接头调压（`dist/oltc.mbt`）：整数档位 `[tap_min, tap_max]`、每档变比步进、目标电压模长 + 死区；状态区分入带 / 升档 / 降档 / 顶上限 / 压下限；`run_oltc` 闭环反复求解、读受控母线 a 相电压、调档并钳限，直到入带、碰档限或用完调档次数。`run_oltc_zip` 是同一套控制律换 ZIP 负荷：每拍按 α + β·V + γ·V² 缩放负荷再解潮流，于是「调档改电压、电压改负荷」这一层耦合也进了闭环；`scan_taps_zip` 逐档扫一遍，返回「档位 → 受控相电压」的完整曲线。受控支路不是变压器、受控节点不存在都返回结构化 `OltcErr::Control`；受控母线 a 相电压为 0（该相被缺相支路断开）同样返回 `OltcErr::Control`，不把无电压当成欠压继续升档。判据可选 `VoltageCriterion::PhaseA`（只看 a 相，旧行为）或 `WorstPhase`（取三相模长最小的一相），对应 `run_oltc_zip_worst_phase` 与 `scan_taps_zip_worst_phase`：不平衡负荷下 a 相进了死区、最低相可能仍在带外，最差相判据会继续调档把它拉进来；任一相断开时照样报 `Control`。
 - 远端电压反馈：默认测量变压器副边电压。`oltc.with_sensing_bus(id)` 可指定同一馈线的下游测量母线；扫档与闭环沿用同一测点。组合算例另设目标 1.0006 ± 0.0064 pu，副边取样时保持 0 档，末端取样时升至 +1 档。不存在或位于变压器上游的测点返回控制输入错误。
+- 组合算例独立参考：运行 `python scripts/check_combo_reference.py` 可逐档得到母线 3 和 4 各相电压。脚本按节点电流平衡建立方程，用牛顿迭代求解；回归测试用其数值校验三相前推回代。
 - 调档后的功率校核：用 `run.solved_network()` 和 `run.result()` 计算 `root_injection_power`、`load_demand_power_zip` 与 `total_loss_power`。三者均返回标幺复功率，可分别检查有功、无功残差；变压器紧邻根母线时，根注入电流折算需要采用最终档位的变比。
 - 逐相投切 / 缺相支路（`dist/model.mbt` 的 `Switch`）：断开相支路电流置零、下游该相电压为零，其余两相照常供负荷；功率平衡按导通相成立，断开相负荷不计入供电量。用 `result.supplied_phases(i)` 查询第 i 个节点从根母线继承的三相开关连通状态。下标与 `voltages()` 一致，越界返回 `None`。
 - 对称分量与三相电压不平衡度（`dist/unbalance.mbt`）：Fortescue 分解出零序 / 正序 / 负序，

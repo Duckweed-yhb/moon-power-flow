@@ -25,6 +25,7 @@ documented in the README's "查重状态" section.
 - `dist/fixtures_test.mbt` uses expected values produced by
   `scripts/gen_dist_fixtures.py`, an in-house Python script that implements the
   same backward/forward sweep independently of the MoonBit library.
+- `scripts/check_combo_reference.py` computes independent reference voltages for the transformer and open-phase case. It solves the connected buses’ complex current-balance equations by Newton iteration with a real finite-difference Jacobian. `dist/combo_test.mbt` checks the MoonBit sweep against those values. The reference uses Python’s standard library and the published parameters from `dist/cases.mbt`.
 - `dist/closed_form_test.mbt` uses a closed-form solution derived from the
   two-node quadratic equation; the derivation is written in the test file.
 - The built-in cases (`dist/cases.mbt`, `cases/case_three_bus.mbt`) are authored

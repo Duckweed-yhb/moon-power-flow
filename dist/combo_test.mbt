@@ -29,12 +29,17 @@ test "tx + oltc + open phase in one feeder" {
   let v3 = @model.cx_abs(run.result().voltages()[2].a())
   assert_true(v3 >= 0.97 - 0.005 - 1.0e-9)
   assert_true(v3 <= 0.97 + 0.005 + 1.0e-9)
-  let expected = [(0, 0.99455), (-1, 0.98203), (-2, 0.96950)]
+  // Nodal KCL/Newton reference from scripts/check_combo_reference.py.
+  let expected = [
+    (0, 0.994550680039),
+    (-1, 0.982026510842),
+    (-2, 0.969501119553),
+  ]
   let moves = run.moves()
   assert_eq(moves.length(), expected.length())
   for i in 0..<moves.length() {
     assert_eq(moves[i].0, expected[i].0)
-    assert_true((moves[i].1 - expected[i].1).abs() <= 0.000005)
+    assert_true((moves[i].1 - expected[i].1).abs() < 1.0e-9)
   }
   assert_eq(run.oltc().tap(), -2)
   // 缺相支路（3 → 4）的 b 相电流为零，下游 b 相电压为零；a/c 两相照常有值。
@@ -48,7 +53,11 @@ test "tx + oltc + open phase in one feeder" {
   assert_true(result.supplied_phases(4) is None)
   let v4 = result.voltages()[3]
   assert_true(@model.cx_abs(v4.b()) == 0.0)
-  assert_true((@model.cx_abs(v4.a()) - 0.96867).abs() <= 0.000005)
+  let v3_phases = result.voltages()[2]
+  assert_true((@model.cx_abs(v3_phases.b()) - 0.972874982425).abs() < 1.0e-9)
+  assert_true((@model.cx_abs(v3_phases.c()) - 0.970608525242).abs() < 1.0e-9)
+  assert_true((@model.cx_abs(v4.a()) - 0.968674851934).abs() < 1.0e-9)
+  assert_true((@model.cx_abs(v4.c()) - 0.969948443167).abs() < 1.0e-9)
   assert_true(@model.cx_abs(v4.c()) > 0.0)
 }
 
