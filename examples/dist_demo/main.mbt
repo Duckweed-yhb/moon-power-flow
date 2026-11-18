@@ -202,6 +202,24 @@ fn main raise {
     ", c=" +
     live.c().to_string(),
   )
+  // 同一条馈线、相同目标和死区，只改变电压测量点。
+  let at_transformer = @dist.Oltc::new(3, 0, -8, 8, 0.0125, 1.0006, 0.0064).unwrap()
+  for control in [at_transformer, at_transformer.with_sensing_bus(4)] {
+    let trial = match
+      @dist.run_oltc(combo, combo_topo, control, 1.0e-12, 100, 10) {
+      Ok(r) => r
+      Err(e) => fail(e.describe())
+    }
+    println(
+      "feedback bus " +
+      control.sensing_bus().to_string() +
+      ": tap=" +
+      trial.oltc().tap().to_string() +
+      ", terminal phase a=" +
+      @model.cx_abs(trial.result().voltages()[3].a()).to_string() +
+      " pu",
+    )
+  }
   // 负荷静特性：同一个重载网络（1 -> 2 -> 3，每节点 0.30+j0.10 pu），
   // 三种 ZIP 构成下末端电压不同。恒阻抗在电压跌落时少取功率，电压不会一路塌；
   // 恒功率最硬，实际取用的有功也不随电压下降。

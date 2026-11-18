@@ -51,6 +51,7 @@ pub fn OltcErr::describe(self : OltcErr) -> String {
 /// OLTC 调压器：受控母线编号、当前档位、档位上下限、每档步进、目标电压与死区。
 pub struct Oltc {
   node_id : Int32
+  sense_node_id : Int32
   tap : Int32
   tap_min : Int32
   tap_max : Int32
@@ -90,12 +91,33 @@ pub fn Oltc::new(
   if band != band || band < 0.0 || band > 1.0e308 {
     return Err("band must be a non-negative finite number")
   }
-  Ok({ node_id, tap, tap_min, tap_max, step, target, band, })
+  Ok({
+    node_id,
+    sense_node_id: node_id,
+    tap,
+    tap_min,
+    tap_max,
+    step,
+    target,
+    band,
+  })
 }
 
 ///|
 pub fn Oltc::node_id(self : Oltc) -> Int32 {
   self.node_id
+}
+
+///|
+/// 将测量点设在变压器副边或其下游母线。节点编号在扫描或运行时按实际网络校验。
+pub fn Oltc::with_sensing_bus(self : Oltc, node_id : Int32) -> Oltc {
+  { ..self, sense_node_id: node_id, }
+}
+
+///|
+/// 返回电压反馈使用的外部母线编号。node_id() 仍为变压器副边母线。
+pub fn Oltc::sensing_bus(self : Oltc) -> Int32 {
+  self.sense_node_id
 }
 
 ///|
@@ -160,30 +182,14 @@ pub fn Oltc::status(self : Oltc, v_mag : Double) -> OltcStatus {
 /// 升一档（钳到上限），返回新的调压器。
 pub fn Oltc::raise_tap(self : Oltc) -> Oltc {
   let next = if self.tap == self.tap_max { self.tap_max } else { self.tap + 1 }
-  {
-    node_id: self.node_id,
-    tap: next,
-    tap_min: self.tap_min,
-    tap_max: self.tap_max,
-    step: self.step,
-    target: self.target,
-    band: self.band,
-  }
+  { ..self, tap: next, }
 }
 
 ///|
 /// 降一档（钳到下限），返回新的调压器。
 pub fn Oltc::lower_tap(self : Oltc) -> Oltc {
   let next = if self.tap == self.tap_min { self.tap_min } else { self.tap - 1 }
-  {
-    node_id: self.node_id,
-    tap: next,
-    tap_min: self.tap_min,
-    tap_max: self.tap_max,
-    step: self.step,
-    target: self.target,
-    band: self.band,
-  }
+  { ..self, tap: next, }
 }
 
 ///|
@@ -300,8 +306,9 @@ pub fn OltcRun::stopped(self : OltcRun) -> OltcStatus {
 fn controlled_indices(
   net : DistNet,
   topo : Topology,
-  node_id : Int32,
+  oltc : Oltc,
 ) -> Result[(Int32, Int32), OltcErr] {
+  let node_id = oltc.node_id()
   let node = match net.find_index(node_id) {
     Some(k) => k
     None =>
@@ -320,7 +327,31 @@ fn controlled_indices(
   if !edge.tx().enabled() {
     return Err(Control("controlled edge is not a transformer branch"))
   }
-  Ok((node, pe))
+  if oltc.sensing_bus() == node_id {
+    return Ok((node, pe))
+  }
+  let sense = match net.find_index(oltc.sensing_bus()) {
+    Some(i) => i
+    None => return Err(Control("sensing bus not found"))
+  }
+  let parents = topo.parent()
+  if parents.length() != net.node_count() {
+    return Err(Sweep(TopologyMismatch))
+  }
+  let mut u = sense
+  for _ in 0..<parents.length() {
+    if u == node {
+      return Ok((sense, pe))
+    }
+    if u == -1 {
+      break
+    }
+    if u < 0 || u >= parents.length() {
+      return Err(Sweep(TopologyMismatch))
+    }
+    u = parents[u]
+  }
+  Err(Control("sensing bus must be downstream of the regulating transformer"))
 }
 
 ///|
@@ -364,7 +395,7 @@ fn scan_taps_zip_with(
   tol : Double,
   max_iter : Int32,
 ) -> Result[Array[(Int32, Double)], OltcErr] {
-  let (node, pe) = match controlled_indices(net, topo, oltc.node_id()) {
+  let (node, pe) = match controlled_indices(net, topo, oltc) {
     Ok(x) => x
     Err(e) => return Err(e)
   }
@@ -400,7 +431,7 @@ fn scan_taps_zip_with(
 /// 闭环调档驱动：反复求解 → 读受控母线 a 相电压 → 判断方向 → 调档钳限，
 /// 直到进入目标区间、碰到档位上下限或用完调档次数。负荷按恒功率算。
 ///
-/// 受控母线必须挂在某条变压器支路上游；拓扑与网络来自同一次 `build_topology`。
+/// 默认测量变压器副边母线；可通过 with_sensing_bus 指定下游测量点；拓扑与网络来自同一次 `build_topology`。
 /// 控制层输入不合法（节点不存在、支路不是变压器）返回 `Err(String)`；
 /// 潮流本身失败透传 `SweepErr`。
 ///
@@ -479,7 +510,7 @@ fn run_oltc_with(
   if max_moves < 0 {
     return Err(Control("max_moves must be non-negative"))
   }
-  let (node, pe) = match controlled_indices(net, topo, oltc.node_id()) {
+  let (node, pe) = match controlled_indices(net, topo, oltc) {
     Ok(x) => x
     Err(e) => return Err(e)
   }

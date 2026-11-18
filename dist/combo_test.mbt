@@ -87,3 +87,57 @@ test "closing the open phase restores the b-phase current" {
   assert_true(i_b > 0.0)
   assert_true(i_b > @model.cx_abs(run.result().branch_currents()[2].b()))
 }
+
+///|
+test "remote sensing raises tap to compensate for the downstream line drop" {
+  let net = @dist.case_tx_oltc_open()
+  let topo = combo_topology(net)
+  let at_transformer = @dist.Oltc::new(3, 0, -8, 8, 0.0125, 1.0006, 0.0064).unwrap()
+  let remote = at_transformer.with_sensing_bus(4)
+  let zip = @model.Zip::constant_power()
+  let at_tx = match
+    @dist.run_oltc_zip(net, topo, at_transformer, zip, 1.0e-12, 100, 10) {
+    Ok(r) => r
+    Err(e) => fail(e.describe())
+  }
+  let at_end = match
+    @dist.run_oltc_zip(net, topo, remote, zip, 1.0e-12, 100, 10) {
+    Ok(r) => r
+    Err(e) => fail(e.describe())
+  }
+  assert_eq(at_tx.oltc().tap(), 0)
+  assert_eq(at_end.oltc().tap(), 1)
+  assert_true(at_end.reached_band())
+  assert_eq(at_end.oltc().sensing_bus(), 4)
+  let rows = match @dist.scan_taps_zip(net, topo, remote, zip, 1.0e-12, 100) {
+    Ok(rows) => rows
+    Err(e) => fail(e.describe())
+  }
+  for (tap, voltage) in at_end.moves() {
+    assert_true((voltage - rows[tap + 8].1).abs() < 1.0e-10)
+  }
+  let endpoint = @model.cx_abs(at_end.result().voltages()[3].a())
+  assert_true((endpoint - at_end.moves()[1].1).abs() < 1.0e-10)
+  assert_true(
+    @dist.run_oltc(
+      net,
+      topo,
+      at_transformer.with_sensing_bus(2),
+      1.0e-12,
+      100,
+      10,
+    )
+    is Err(@dist.OltcErr::Control(_)),
+  )
+  assert_true(
+    @dist.scan_taps_zip(
+      net,
+      topo,
+      at_transformer.with_sensing_bus(99),
+      zip,
+      1.0e-12,
+      100,
+    )
+    is Err(@dist.OltcErr::Control(_)),
+  )
+}
