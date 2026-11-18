@@ -466,6 +466,9 @@ fn run_oltc_with(
   max_iter : Int32,
   max_moves : Int32,
 ) -> Result[OltcRun, OltcErr] {
+  if max_moves < 0 {
+    return Err(Control("max_moves must be non-negative"))
+  }
   let (node, pe) = match controlled_indices(net, topo, oltc.node_id()) {
     Ok(x) => x
     Err(e) => return Err(e)

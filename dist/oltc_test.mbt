@@ -140,6 +140,10 @@ test "oltc driver closes the loop without worsening the target" {
     Ok(x) => x
     Err(e) => fail(e)
   }
+  assert_true(
+    @dist.run_oltc(net, topo, oltc, 1.0e-12, 100, -1)
+    is Err(@dist.OltcErr::Control(_)),
+  )
   match @dist.run_oltc(net, topo, oltc, 1.0e-12, 100, 12) {
     Ok(run) => {
       assert_true(run.moves().length() >= 1)
