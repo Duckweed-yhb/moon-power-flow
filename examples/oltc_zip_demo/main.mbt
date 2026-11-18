@@ -84,10 +84,7 @@ fn main raise {
   let net = tx_feeder()
   let topo = match @dist.build_topology(net) {
     Ok(t) => t
-    Err(e) => {
-      println("topology error: " + e.describe())
-      return
-    }
+    Err(e) => fail("topology error: " + e.describe())
   }
   report("恒功率 (α=1)", net, topo, @model.Zip::constant_power())
   let mixed = match @model.Zip::new(0.5, 0.2, 0.3) {
