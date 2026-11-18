@@ -74,61 +74,43 @@ pub fn build_topology(net : DistNet) -> Result[Topology, TopoErr] {
   if n == 0 {
     return Err(RootNotFound)
   }
-  // 1. 编号唯一
-  let mut i = 0
-  while i < n {
-    let mut j = i + 1
-    while j < n {
-      if net.node_at(i).id() == net.node_at(j).id() {
-        return Err(DuplicateNodeId(net.node_at(i).id()))
-      }
-      j += 1
+  // Reverse order preserves the first duplicate in node-table order.
+  let index : Map[Int32, Int32] = Map([])
+  let mut duplicate = None
+  for i = n - 1; i >= 0; i = i - 1 {
+    let id = net.node_at(i).id()
+    if index.contains(id) {
+      duplicate = Some(id)
     }
-    i += 1
+    index[id] = i
   }
-  // 2. 根存在
-  let root = match net.find_index(net.root_id()) {
+  if duplicate is Some(id) {
+    return Err(DuplicateNodeId(id))
+  }
+  let root = match index.get(net.root_id()) {
     Some(k) => k
     None => return Err(RootNotFound)
   }
-  // 3. 端点存在
   let m = net.edge_count()
-  let mut k = 0
-  while k < m {
-    let e = net.edge_at(k)
-    match net.find_index(e.from_id()) {
-      Some(_) => ()
-      None => return Err(UnknownEndpoint(e.from_id()))
-    }
-    match net.find_index(e.to_id()) {
-      Some(_) => ()
-      None => return Err(UnknownEndpoint(e.to_id()))
-    }
-    k += 1
-  }
-  // 4. 树的条件
-  if m != n - 1 {
-    return Err(NotRadial)
-  }
-  // 邻接表：节点 -> [(邻居, 边下标)]
   let adj : Array[Array[(Int32, Int32)]] = []
   for _ in 0..<n {
     adj.push([])
   }
-  let mut e = 0
-  while e < m {
+  for e in 0..<m {
     let edge = net.edge_at(e)
-    let u = match net.find_index(edge.from_id()) {
-      Some(x) => x
+    let u = match index.get(edge.from_id()) {
+      Some(k) => k
       None => return Err(UnknownEndpoint(edge.from_id()))
     }
-    let v = match net.find_index(edge.to_id()) {
-      Some(x) => x
+    let v = match index.get(edge.to_id()) {
+      Some(k) => k
       None => return Err(UnknownEndpoint(edge.to_id()))
     }
     adj[u].push((v, e))
     adj[v].push((u, e))
-    e += 1
+  }
+  if m != n - 1 {
+    return Err(NotRadial)
   }
   // 5. BFS
   let visited : Array[Bool] = []

@@ -114,6 +114,17 @@ test "topology: duplicate node id is rejected" {
     Err(@dist.DuplicateNodeId(1)) => ()
     Err(e) => fail("expected DuplicateNodeId, got " + e.describe())
   }
+  // Two duplicate pairs: report the first duplicated ID in node-table order.
+  let repeated = [9, 3, 3, 9].map(id => {
+    @dist.DistNode::make(id, @dist.Phasor::zero())
+  })
+  let ambiguous = @dist.DistNet::make(
+    repeated,
+    [],
+    9,
+    @dist.Phasor::balanced(1.0, 0.0),
+  )
+  assert_true(@dist.build_topology(ambiguous) is Err(@dist.DuplicateNodeId(9)))
 }
 
 // ---------- 前推回代 ----------
