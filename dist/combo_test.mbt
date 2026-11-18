@@ -125,7 +125,12 @@ test "remote sensing raises tap to compensate for the downstream line drop" {
   for (tap, voltage) in at_end.moves() {
     assert_true((voltage - rows[tap + 8].1).abs() < 1.0e-10)
   }
-  let endpoint = @model.cx_abs(at_end.result().voltages()[3].a())
+  // Independent nodal reference at +1 tap, including the isolated phase.
+  let v4 = at_end.result().voltages()[3]
+  let endpoint = @model.cx_abs(v4.a())
+  assert_true((endpoint - 1.006278310612).abs() < 1.0e-9)
+  assert_eq(@model.cx_abs(v4.b()), 0.0)
+  assert_true((@model.cx_abs(v4.c()) - 1.007530631601).abs() < 1.0e-9)
   assert_true((endpoint - at_end.moves()[1].1).abs() < 1.0e-10)
   assert_true(
     @dist.run_oltc(
