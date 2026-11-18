@@ -43,10 +43,7 @@ fn report(
           "  tap " + row.0.to_string() + " -> " + row.1.to_string() + " pu",
         )
       }
-    Err(e) => {
-      println("  scan failed: " + e.describe())
-      return
-    }
+    Err(e) => fail(e.describe())
   }
   match @dist.run_oltc_zip(net, topo, oltc(), zip, 1.0e-9, 100, 12) {
     Ok(run) => {
@@ -64,12 +61,12 @@ fn report(
         " pu，进带 " +
         run.reached_band().to_string() +
         "，调档步数 " +
-        moves.length().to_string() +
+        (moves.length() - 1).to_string() +
         "，终止于 " +
         run.stopped().describe(),
       )
     }
-    Err(e) => println("  闭环失败：" + e.describe())
+    Err(e) => fail(e.describe())
   }
 }
 

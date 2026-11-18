@@ -168,6 +168,7 @@ fn main {
     ti += 1
   }
   println("tap trace: " + trace)
+  println("tap changes: " + (moves.length() - 1).to_string())
   println(
     "final tap=" +
     run.oltc().tap().to_string() +
