@@ -39,11 +39,22 @@ pub fn branch_losses(net : DistNet, r : SweepOk) -> Array[Phasor] {
 ///|
 /// 全网有功损耗（标幺）：所有支路三个相的有功损耗之和。
 pub fn total_loss_active(net : DistNet, r : SweepOk) -> Double {
-  let mut sum = 0.0
-  for l in branch_losses(net, r) {
-    sum = sum + l.a().re + l.b().re + l.c().re
+  total_loss_power(net, r).re
+}
+
+///|
+/// 所有支路吸收的复功率之和，实部和虚部分别为有功、无功（pu）。
+pub fn total_loss_power(net : DistNet, r : SweepOk) -> @model.Cx {
+  let mut sum = @model.cx(0.0, 0.0)
+  for loss in branch_losses(net, r) {
+    sum = @model.cx_add(sum, phase_sum(loss))
   }
   sum
+}
+
+///|
+fn phase_sum(s : Phasor) -> @model.Cx {
+  @model.cx_add(@model.cx_add(s.a(), s.b()), s.c())
 }
 
 ///|
@@ -76,10 +87,16 @@ pub fn load_demand_active(net : DistNet) -> Double {
 ///
 /// 与 `load_demand_active + total_loss_active` 构成功率平衡恒等式。
 pub fn root_injection_active(net : DistNet, r : SweepOk) -> Double {
+  root_injection_power(net, r).re
+}
+
+///|
+/// 根电源向馈线送出的复功率，采用与 root_injection_active 一致的方向和标幺基准。
+pub fn root_injection_power(net : DistNet, r : SweepOk) -> @model.Cx {
   let root_id = net.root_id()
   let v_root = net.v_root()
   let cur = r.branch_currents()
-  let mut sum = 0.0
+  let mut sum = @model.cx(0.0, 0.0)
   for k in 0..<net.edge_count() {
     let e = net.edge_at(k)
     if e.from_id() == root_id || e.to_id() == root_id {
@@ -87,10 +104,10 @@ pub fn root_injection_active(net : DistNet, r : SweepOk) -> Double {
       // 复功率守恒 S_pri = S_sec）。普通线路 k=1。
       let ratio = if e.tx().enabled() { e.tx().ratio() } else { 1.0 }
       let i = cur[k].scale(ratio)
-      let pa = @model.cx_mul(v_root.a(), @model.cx_conj(i.a())).re
-      let pb = @model.cx_mul(v_root.b(), @model.cx_conj(i.b())).re
-      let pc = @model.cx_mul(v_root.c(), @model.cx_conj(i.c())).re
-      sum = sum + pa + pb + pc
+      let pa = @model.cx_mul(v_root.a(), @model.cx_conj(i.a()))
+      let pb = @model.cx_mul(v_root.b(), @model.cx_conj(i.b()))
+      let pc = @model.cx_mul(v_root.c(), @model.cx_conj(i.c()))
+      sum = @model.cx_add(sum, phase_sum(phasor(pa, pb, pc)))
     }
   }
   sum

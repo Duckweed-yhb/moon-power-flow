@@ -255,6 +255,7 @@ fn controlled_voltage(
 /// 一次调档迭代的结果：最终调压器、最后一次潮流解、是否进入目标区间、
 /// 每一步（档位, 受控相电压模长）轨迹、最终状态。
 pub struct OltcRun {
+  network : DistNet
   oltc : Oltc
   result : SweepOk
   reached_band : Bool
@@ -270,6 +271,12 @@ pub fn OltcRun::oltc(self : OltcRun) -> Oltc {
 ///|
 pub fn OltcRun::result(self : OltcRun) -> SweepOk {
   self.result
+}
+
+///|
+/// 最后一次潮流使用的网络，包含实际停位的变比。与 result() 配对做功率统计。
+pub fn OltcRun::solved_network(self : OltcRun) -> DistNet {
+  self.network
 }
 
 ///|
@@ -482,7 +489,7 @@ fn run_oltc_with(
   }
   let mut cur = oltc
   let moves : Array[(Int32, Double)] = []
-  let mut latest : SweepOk? = None
+  let mut latest : (DistNet, SweepOk)? = None
   let mut reached = false
   let mut status = InBand
   // `max_moves` 是允许的调档次数，不是求解次数：每到一档都要解一次潮流，
@@ -507,7 +514,7 @@ fn run_oltc_with(
       Err(e) => return Err(e)
     }
     moves.push((cur.tap(), mag))
-    latest = Some(solved)
+    latest = Some((net2, solved))
     status = cur.status(mag)
     match status {
       InBand => {
@@ -532,9 +539,16 @@ fn run_oltc_with(
         }
     }
   }
-  let result = match latest {
+  let (network, result) = match latest {
     Some(r) => r
     None => return Err(Control("no sweep produced a result"))
   }
-  Ok({ oltc: cur, result, reached_band: reached, moves, stopped: status, })
+  Ok({
+    network,
+    oltc: cur,
+    result,
+    reached_band: reached,
+    moves,
+    stopped: status,
+  })
 }

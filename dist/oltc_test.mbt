@@ -719,3 +719,31 @@ test "OLTC rejects topology from a smaller network before reading parent edge" {
     is Err(@dist.OltcErr::Sweep(@dist.SweepErr::TopologyMismatch)),
   )
 }
+
+///|
+test "final network preserves power balance after root transformer changes tap" {
+  let net = heavy_tx_net()
+  let topo = match @dist.build_topology(net) {
+    Ok(t) => t
+    Err(e) => fail(e.describe())
+  }
+  let regulator = @dist.Oltc::new(2, 0, -6, 6, 0.02, 1.026, 0.008).unwrap()
+  let zip = @model.Zip::new(0.5, 0.2, 0.3).unwrap()
+  let run = match
+    @dist.run_oltc_zip(net, topo, regulator, zip, 1.0e-12, 100, 12) {
+    Ok(v) => v
+    Err(e) => fail(e.describe())
+  }
+  assert_true(run.reached_band())
+  assert_true(run.oltc().tap() != 0)
+  assert_eq(net.edge_at(0).tx().ratio(), 1.0)
+  let final_net = run.solved_network()
+  assert_eq(final_net.edge_at(0).tx().ratio(), run.oltc().ratio())
+  let r = run.result()
+  let source = @dist.root_injection_power(final_net, r)
+  let expected = @model.cx_add(
+    @dist.total_loss_power(final_net, r),
+    @dist.load_demand_power_zip(final_net, r, zip),
+  )
+  assert_true(@model.cx_abs(@model.cx_sub(source, expected)) < 1.0e-9)
+}

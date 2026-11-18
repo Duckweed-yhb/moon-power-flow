@@ -176,6 +176,23 @@ fn main raise {
     @model.cx_abs(run.result().voltages()[3].a()).to_string() +
     " pu",
   )
+  let final_net = run.solved_network()
+  let result = run.result()
+  let injection = @dist.root_injection_power(final_net, result)
+  let served = @dist.load_demand_power_zip(
+    final_net,
+    result,
+    @model.Zip::constant_power(),
+  )
+  let loss = @dist.total_loss_power(final_net, result)
+  let residual = @model.cx_sub(injection, @model.cx_add(served, loss))
+  println(
+    "final tap power balance: dP=" +
+    residual.re().to_string() +
+    ", dQ=" +
+    residual.im().to_string() +
+    " pu",
+  )
   let live = run.result().supplied_phases(3).unwrap()
   println(
     "bus4 connected phases: a=" +

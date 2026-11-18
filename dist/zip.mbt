@@ -29,9 +29,19 @@ pub fn load_demand_active_zip(
   r : SweepOk,
   zip : @model.Zip,
 ) -> Double {
+  load_demand_power_zip(net, r, zip).re
+}
+
+///|
+/// 按最终电压和实际连通相统计 ZIP 负荷的复功率（pu），排除根节点。
+pub fn load_demand_power_zip(
+  net : DistNet,
+  r : SweepOk,
+  zip : @model.Zip,
+) -> @model.Cx {
   let root_id = net.root_id()
   let v = r.voltages()
-  let mut sum = 0.0
+  let mut sum = @model.cx(0.0, 0.0)
   let mut i = 0
   while i < net.node_count() && i < v.length() {
     let node = net.node_at(i)
@@ -41,7 +51,7 @@ pub fn load_demand_active_zip(
         v[i],
         zip,
       )
-      sum = sum + s_eff.a().re + s_eff.b().re + s_eff.c().re
+      sum = @model.cx_add(sum, phase_sum(s_eff))
     }
     i += 1
   }

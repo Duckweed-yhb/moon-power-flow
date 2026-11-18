@@ -92,3 +92,25 @@ test "every branch loss has non negative active part" {
     Err(e) => fail(e.describe())
   }
 }
+
+///|
+test "reactive power balances across ZIP, leakage reactance and open phases" {
+  for net in [@dist.case_coupled(), @dist.case_tx_oltc_open()] {
+    let topo = match @dist.build_topology(net) {
+      Ok(t) => t
+      Err(e) => fail(e.describe())
+    }
+    let zip = @model.Zip::new(0.5, 0.2, 0.3).unwrap()
+    let r = match @dist.sweep_zip(net, topo, zip, 1.0e-12, 100) {
+      Ok(value) => value
+      Err(e) => fail(e.describe())
+    }
+    let source = @dist.root_injection_power(net, r)
+    let load = @dist.load_demand_power_zip(net, r, zip)
+    let loss = @dist.total_loss_power(net, r)
+    assert_true(load.im() > 0.0)
+    assert_true(loss.im() > 0.0)
+    assert_true((source.im() - load.im() - loss.im()).abs() < 1.0e-9)
+    assert_true((source.re() - load.re() - loss.re()).abs() < 1.0e-9)
+  }
+}
