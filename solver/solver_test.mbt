@@ -266,3 +266,40 @@ test "single phase constant impedance load raises the solved voltage" {
   assert_true(@model.cx_abs(b[1]) > @model.cx_abs(a[1]))
   assert_true(@model.cx_abs(b[2]) > @model.cx_abs(a[2]))
 }
+
+///|
+test "GS rejects incomplete or oversized admittance matrices" {
+  let (net, y, _) = solved()
+  let short : Array[Array[@model.Cx]] = []
+  assert_true(
+    @solver.gauss_seidel(net, short, 1.0e-9, 3) is Err(@solver.InvalidConfig),
+  )
+  y[1] = []
+  assert_true(
+    @solver.gauss_seidel_zip(net, y, @model.Zip::constant_power(), 1.0e-9, 3)
+    is Err(@solver.InvalidConfig),
+  )
+  let large = @ybus.build_ybus(net)
+  large.push(large[0])
+  assert_true(
+    @solver.gauss_seidel(net, large, 1.0e-9, 3) is Err(@solver.InvalidConfig),
+  )
+}
+
+///|
+test "GS validates fixed voltage even when the slack is the only bus" {
+  for bad in [0.0 / 0.0, 1.0 / 0.0] {
+    let net = match
+      @model.validate(
+        [@model.Bus::make_slack(1, "slack", @model.cx(bad, 0.0))],
+        [],
+      ) {
+      Ok(n) => n
+      Err(e) => fail(e.describe())
+    }
+    let y = @ybus.build_ybus(net)
+    assert_true(
+      @solver.gauss_seidel(net, y, 1.0e-9, 100) is Err(@solver.NonFinite(0)),
+    )
+  }
+}

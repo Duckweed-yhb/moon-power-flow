@@ -44,7 +44,7 @@ pub fn SolveErr::describe(self : SolveErr) -> String {
   match self {
     NoSlack => "no slack bus found (network must be validated first)"
     InvalidConfig =>
-      "invalid config: max_iter must be > 0 and tol must be a positive finite number"
+      "invalid config: require max_iter > 0, positive finite tol, and a square Ybus matching the bus count"
     NonFinite(iter) =>
       "non-finite value at sweep " +
       iter.to_string() +
@@ -105,6 +105,13 @@ fn gauss_seidel_with_zip(
     Some(i) => i
     None => return Err(NoSlack)
   }
+  if ybus.length() != n || ybus.any(row => row.length() != n) {
+    return Err(InvalidConfig)
+  }
+  let slack_mag = @model.cx_abs(net.bus_at(slack).v_fixed())
+  if slack_mag.is_nan() || slack_mag.is_inf() {
+    return Err(NonFinite(0))
+  }
   let v = Array::makei(n, i => {
     if i == slack {
       net.bus_at(i).v_fixed()
@@ -117,7 +124,6 @@ fn gauss_seidel_with_zip(
   while iter < max_iter {
     iter += 1
     let mut max_delta = 0.0
-    let mut seen_nan = false
     let mut i = 0
     while i < n {
       if i != slack {
@@ -146,8 +152,8 @@ fn gauss_seidel_with_zip(
         let delta = @model.cx_abs(@model.cx_sub(vi_new, vi_old))
         // NaN 必须先抓：`NaN > max_delta` 恒为 false，否则本轮 max_delta 停在 0，
         // 收敛判据会把「全是 NaN」当成收敛，返回 Ok + NaN 电压。
-        if delta != delta {
-          seen_nan = true
+        if delta.is_nan() || delta.is_inf() {
+          return Err(NonFinite(iter))
         }
         if delta > max_delta {
           max_delta = delta
@@ -155,9 +161,6 @@ fn gauss_seidel_with_zip(
         v[i] = vi_new
       }
       i += 1
-    }
-    if seen_nan {
-      return Err(NonFinite(iter))
     }
     last_delta = max_delta
     if max_delta < tol {
