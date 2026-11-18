@@ -93,4 +93,20 @@ fn main raise {
   }
   report("混合 (α=0.5 β=0.2 γ=0.3)", net, topo, mixed)
   report("恒阻抗 (γ=1)", net, topo, @model.Zip::constant_impedance())
+  let narrow = @dist.Oltc::new(2, 0, -6, 6, 0.02, 0.997, 0.001).unwrap()
+  let hunting = match
+    @dist.run_oltc_zip(net, topo, narrow, mixed, 1.0e-9, 100, 2) {
+    Ok(r) => r
+    Err(e) => fail(e.describe())
+  }
+  println("=== 混合 ZIP，目标 0.997 ± 0.001 pu，最多调档两次 ===")
+  for (tap, voltage) in hunting.moves() {
+    println("  tap " + tap.to_string() + " -> " + voltage.to_string() + " pu")
+  }
+  println(
+    "  档位往返 " +
+    hunting.tap_hunting().to_string() +
+    "，进带 " +
+    hunting.reached_band().to_string(),
+  )
 }
