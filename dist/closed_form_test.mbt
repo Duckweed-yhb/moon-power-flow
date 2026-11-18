@@ -77,3 +77,47 @@ test "sweep: no load leaves root voltage untouched" {
     Err(e) => fail(e.describe())
   }
 }
+
+///|
+test "mixed ZIP transformer feeder matches analytic high voltage root" {
+  let r = 0.08
+  let p = 0.65
+  let z = @model.cx(r, 0.0)
+  for ratio in [0.9, 1.0, 1.1] {
+    let tx = @dist.TxSpec::new(ratio, @dist.z3_diag(z, z, z)).unwrap()
+    let net = @dist.DistNet::make(
+      [
+        @dist.DistNode::make(7, @dist.Phasor::zero()),
+        @dist.DistNode::make(15, @dist.Phasor::uniform(@model.cx(p, 0.0))),
+      ],
+      [@dist.DistEdge::make_tx(7, 15, tx)],
+      7,
+      @dist.Phasor::balanced(1.0, 0.0),
+    )
+    let topo = match @dist.build_topology(net) {
+      Ok(t) => t
+      Err(e) => fail(e.describe())
+    }
+    for
+      (alpha, beta, gamma) in [
+        (1.0, 0.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (0.0, 0.0, 1.0),
+        (0.5, 0.2, 0.3),
+      ] {
+      let zip = @model.Zip::new(alpha, beta, gamma).unwrap()
+      let result = match @dist.sweep_zip(net, topo, zip, 1.0e-12, 100) {
+        Ok(v) => v
+        Err(e) => fail(e.describe())
+      }
+      // V = ratio - R * P(V)/V. Choose the high-voltage quadratic root.
+      let a = 1.0 + r * p * gamma
+      let b = ratio - r * p * beta
+      let expected = (b + (b * b - 4.0 * a * r * p * alpha).sqrt()) / (2.0 * a)
+      let v = result.voltages()[1]
+      for phase in [v.a(), v.b(), v.c()] {
+        assert_true((@model.cx_abs(phase) - expected).abs() < 1.0e-10)
+      }
+    }
+  }
+}
