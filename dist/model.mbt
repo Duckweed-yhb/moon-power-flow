@@ -136,6 +136,9 @@ pub fn Phasor::max_abs(self : Phasor) -> Double {
   let a = @model.cx_abs(self.a)
   let b = @model.cx_abs(self.b)
   let c = @model.cx_abs(self.c)
+  if a.is_nan() || b.is_nan() || c.is_nan() {
+    return a + b + c
+  }
   let m = if a > b { a } else { b }
   if c > m {
     c

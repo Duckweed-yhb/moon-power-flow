@@ -232,3 +232,31 @@ test "constant power ZIP demand equals the plain demand" {
   let plain = @dist.load_demand_active(net)
   assert_true((zipped - plain).abs() < 1.0e-12)
 }
+
+///|
+test "one invalid phase cannot disappear from the convergence norm" {
+  let good = @model.cx(1.0, 0.0)
+  let bad = @model.cx(0.0 / 0.0, 0.0)
+  for
+    v in [
+      @dist.phasor(bad, good, good),
+      @dist.phasor(good, bad, good),
+      @dist.phasor(good, good, bad),
+    ] {
+    let magnitude = v.max_abs()
+    assert_true(magnitude.is_nan())
+    let net = @dist.DistNet::make(
+      [@dist.DistNode::make(1, @dist.Phasor::zero())],
+      [],
+      1,
+      v,
+    )
+    let topo = match @dist.build_topology(net) {
+      Ok(t) => t
+      Err(e) => fail(e.describe())
+    }
+    assert_true(
+      @dist.sweep(net, topo, 1.0e-9, 10) is Err(@dist.SweepErr::NonFinite(_)),
+    )
+  }
+}

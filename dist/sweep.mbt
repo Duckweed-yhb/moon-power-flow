@@ -141,6 +141,10 @@ fn sweep_with_zip(
   if topo.parent_edge().length() != n || topo.parent().length() != n {
     return Err(SweepErr::TopologyMismatch)
   }
+  let slack = net.v_root().max_abs()
+  if slack.is_nan() || slack.is_inf() {
+    return Err(SweepErr::NonFinite(0))
+  }
   let root = match net.find_index(net.root_id()) {
     Some(k) => k
     None => return Err(SweepErr::Topology(RootNotFound))
@@ -240,7 +244,6 @@ fn sweep_with_zip(
     }
     // 2. 前推：根到叶子，同时统计收敛偏差
     let mut max_dv = 0.0
-    let mut seen_nan = false
     for u in order {
       if u != root {
         let pe = parent_edge[u]
@@ -258,17 +261,14 @@ fn sweep_with_zip(
         let dv = v_new.sub(v[u]).max_abs()
         // NaN 必须先抓：`NaN > max_dv` 恒为 false，否则这一轮的 max_dv 会停在 0，
         // 下一行就把「全是 NaN」判成收敛。
-        if dv != dv {
-          seen_nan = true
+        if dv.is_nan() || dv.is_inf() {
+          return Err(SweepErr::NonFinite(iter))
         }
         if dv > max_dv {
           max_dv = dv
         }
         v[u] = v_new
       }
-    }
-    if seen_nan {
-      return Err(SweepErr::NonFinite(iter))
     }
     last_dv = max_dv
     trace.push(max_dv)
