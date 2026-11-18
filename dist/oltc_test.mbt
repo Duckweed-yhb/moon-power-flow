@@ -44,6 +44,10 @@ test "oltc rejects invalid configuration" {
     Ok(_) => fail("zero step must be rejected")
     Err(e) => assert_true(e.contains("step"))
   }
+  for step in [0.5, 1.0] {
+    assert_true(@dist.Oltc::new(2, 0, -2, 2, step, 1.0, 0.01) is Err(_))
+  }
+  assert_true(@dist.Oltc::new(2, 0, 0, 2, 1.0e308, 1.0, 0.01) is Err(_))
   // 目标电压非正
   match @dist.Oltc::new(2, 0, -5, 5, 0.02, 0.0, 0.01) {
     Ok(_) => fail("zero target must be rejected")

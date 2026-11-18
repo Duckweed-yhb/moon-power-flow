@@ -80,6 +80,10 @@ pub fn Oltc::new(
   if step != step || step <= 0.0 || step > 1.0e308 {
     return Err("tap step must be a positive finite number")
   }
+  if 1.0 + tap_min.to_double() * step <= 0.0 ||
+    (1.0 + tap_max.to_double() * step).is_inf() {
+    return Err("tap range must give positive finite ratios")
+  }
   if target != target || target <= 0.0 || target > 1.0e308 {
     return Err("target voltage must be a positive finite number")
   }
@@ -155,11 +159,7 @@ pub fn Oltc::status(self : Oltc, v_mag : Double) -> OltcStatus {
 ///|
 /// 升一档（钳到上限），返回新的调压器。
 pub fn Oltc::raise_tap(self : Oltc) -> Oltc {
-  let next = if self.tap + 1 > self.tap_max {
-    self.tap_max
-  } else {
-    self.tap + 1
-  }
+  let next = if self.tap == self.tap_max { self.tap_max } else { self.tap + 1 }
   {
     node_id: self.node_id,
     tap: next,
@@ -174,11 +174,7 @@ pub fn Oltc::raise_tap(self : Oltc) -> Oltc {
 ///|
 /// 降一档（钳到下限），返回新的调压器。
 pub fn Oltc::lower_tap(self : Oltc) -> Oltc {
-  let next = if self.tap - 1 < self.tap_min {
-    self.tap_min
-  } else {
-    self.tap - 1
-  }
+  let next = if self.tap == self.tap_min { self.tap_min } else { self.tap - 1 }
   {
     node_id: self.node_id,
     tap: next,
@@ -382,6 +378,9 @@ fn scan_taps_zip_with(
       Err(e) => return Err(e)
     }
     out.push((tap, mag))
+    if tap == oltc.tap_max() {
+      break
+    }
     tap += 1
   }
   Ok(out)
