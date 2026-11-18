@@ -29,13 +29,20 @@ test "tx + oltc + open phase in one feeder" {
   let v3 = @model.cx_abs(run.result().voltages()[2].a())
   assert_true(v3 >= 0.97 - 0.005 - 1.0e-9)
   assert_true(v3 <= 0.97 + 0.005 + 1.0e-9)
-  assert_true(run.moves().length() > 1)
+  let expected = [(0, 0.99455), (-1, 0.98203), (-2, 0.96950)]
+  let moves = run.moves()
+  assert_eq(moves.length(), expected.length())
+  for i in 0..<moves.length() {
+    assert_eq(moves[i].0, expected[i].0)
+    assert_true((moves[i].1 - expected[i].1).abs() <= 0.000005)
+  }
+  assert_eq(run.oltc().tap(), -2)
   // 缺相支路（3 → 4）的 b 相电流为零，下游 b 相电压为零；a/c 两相照常有值。
   let cur = run.result().branch_currents()[2]
   assert_true(@model.cx_abs(cur.b()) == 0.0)
   let v4 = run.result().voltages()[3]
   assert_true(@model.cx_abs(v4.b()) == 0.0)
-  assert_true(@model.cx_abs(v4.a()) > 0.0)
+  assert_true((@model.cx_abs(v4.a()) - 0.96867).abs() <= 0.000005)
   assert_true(@model.cx_abs(v4.c()) > 0.0)
 }
 
@@ -64,11 +71,13 @@ test "closing the open phase restores the b-phase current" {
     net.root_id(),
     net.v_root(),
   )
-  let r = match @dist.sweep(closed_net, topo, 1.0e-12, 200) {
+  let closed_run = match
+    @dist.run_oltc(closed_net, topo, oltc, 1.0e-12, 200, 20) {
     Ok(x) => x
     Err(e) => fail(e.describe())
   }
-  let i_b = @model.cx_abs(r.branch_currents()[2].b())
+  assert_true(closed_run.reached_band())
+  let i_b = @model.cx_abs(closed_run.result().branch_currents()[2].b())
   assert_true(i_b > 0.0)
   assert_true(i_b > @model.cx_abs(run.result().branch_currents()[2].b()))
 }
