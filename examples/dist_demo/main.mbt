@@ -10,14 +10,11 @@ fn fmt_cx(c : @model.Cx) -> String {
 }
 
 ///|
-fn main {
+fn main raise {
   let net = @dist.case_four_node()
   let topo = match @dist.build_topology(net) {
     Ok(t) => t
-    Err(e) => {
-      println("topology error: " + e.describe())
-      return
-    }
+    Err(e) => fail("topology error: " + e.describe())
   }
   match @dist.sweep(net, topo, 0.000000001, 100) {
     Ok(r) => {
@@ -124,7 +121,7 @@ fn main {
         " pu",
       )
     }
-    Err(e) => println("sweep error: " + e.describe())
+    Err(e) => fail("sweep error: " + e.describe())
   }
   // 组合算例：变压器在网中间、OLTC 调档、下游还有一条缺相支路。
   // 三项能力原先各自只在两节点小网里出现过，这里放在同一条馈线上跑。
@@ -135,26 +132,17 @@ fn main {
   let combo = @dist.case_tx_oltc_open()
   let combo_topo = match @dist.build_topology(combo) {
     Ok(t) => t
-    Err(e) => {
-      println("topology error: " + e.describe())
-      return
-    }
+    Err(e) => fail("topology error: " + e.describe())
   }
   // 步进 1.25%/档，目标 0.97 pu、死区 ±0.005 pu，档位限制 ±8。
   let oltc = match @dist.Oltc::new(3, 0, -8, 8, 0.0125, 0.97, 0.005) {
     Ok(o) => o
-    Err(e) => {
-      println("oltc error: " + e)
-      return
-    }
+    Err(e) => fail("oltc error: " + e)
   }
   let run = match
     @dist.run_oltc(combo, combo_topo, oltc, 0.000000001, 100, 20) {
     Ok(r) => r
-    Err(e) => {
-      println("oltc run error: " + e.describe())
-      return
-    }
+    Err(e) => fail("oltc run error: " + e.describe())
   }
   let mut ti = 0
   let moves = run.moves()
@@ -210,10 +198,7 @@ fn main {
   )
   let heavy_topo = match @dist.build_topology(heavy) {
     Ok(t) => t
-    Err(e) => {
-      println("heavy topology error: " + e.describe())
-      return
-    }
+    Err(e) => fail("heavy topology error: " + e.describe())
   }
   let cases : Array[(String, @model.Zip)] = [
     ("恒功率 α=1", @model.Zip::new(1.0, 0.0, 0.0).unwrap()),
@@ -237,7 +222,7 @@ fn main {
           " pu",
         )
       }
-      Err(e) => println(label + ": " + e.describe())
+      Err(e) => fail(label + ": " + e.describe())
     }
   }
   // 分接头扫描：同一台 1 -> 2 变压器只改变比，看受控母线电压怎么随档位走。
@@ -250,10 +235,7 @@ fn main {
   let tx_base = @dist.case_with_transformer()
   let tx_topo = match @dist.build_topology(tx_base) {
     Ok(t) => t
-    Err(e) => {
-      println("tx topology error: " + e.describe())
-      return
-    }
+    Err(e) => fail("tx topology error: " + e.describe())
   }
   let mut tap = -4
   while tap <= 4 {
@@ -277,7 +259,7 @@ fn main {
           " pu, iter=" +
           r.iter().to_string(),
         )
-      Err(e) => println("tap " + tap.to_string() + ": " + e.describe())
+      Err(e) => fail("tap " + tap.to_string() + ": " + e.describe())
     }
     tap += 1
   }
