@@ -40,7 +40,13 @@ test "tx + oltc + open phase in one feeder" {
   // 缺相支路（3 → 4）的 b 相电流为零，下游 b 相电压为零；a/c 两相照常有值。
   let cur = run.result().branch_currents()[2]
   assert_true(@model.cx_abs(cur.b()) == 0.0)
-  let v4 = run.result().voltages()[3]
+  let result = run.result()
+  let terminal = result.supplied_phases(3).unwrap()
+  assert_true(terminal.a() && !terminal.b() && terminal.c())
+  assert_true(result.supplied_phases(2).unwrap().b())
+  assert_true(result.supplied_phases(-1) is None)
+  assert_true(result.supplied_phases(4) is None)
+  let v4 = result.voltages()[3]
   assert_true(@model.cx_abs(v4.b()) == 0.0)
   assert_true((@model.cx_abs(v4.a()) - 0.96867).abs() <= 0.000005)
   assert_true(@model.cx_abs(v4.c()) > 0.0)

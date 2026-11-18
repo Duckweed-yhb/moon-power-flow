@@ -55,6 +55,13 @@ pub fn SweepOk::trace(self : SweepOk) -> Array[Double] {
 }
 
 ///|
+/// 从根沿馈线逐相追踪的开关连通状态。下标与 voltages() 相同，越界返回 None。
+/// 连通性由支路开关决定，空载相即使电流为零也可以连通。
+pub fn SweepOk::supplied_phases(self : SweepOk, node_index : Int32) -> Switch? {
+  self.supplied.get(node_index)
+}
+
+///|
 /// 求解失败：拓扑非法、拓扑与网络不匹配、出现非有限值，或达到迭代上限仍未收敛。
 pub enum SweepErr {
   Topology(TopoErr)

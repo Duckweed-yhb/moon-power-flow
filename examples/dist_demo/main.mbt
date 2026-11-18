@@ -176,6 +176,15 @@ fn main raise {
     @model.cx_abs(run.result().voltages()[3].a()).to_string() +
     " pu",
   )
+  let live = run.result().supplied_phases(3).unwrap()
+  println(
+    "bus4 connected phases: a=" +
+    live.a().to_string() +
+    ", b=" +
+    live.b().to_string() +
+    ", c=" +
+    live.c().to_string(),
+  )
   // 负荷静特性：同一个重载网络（1 -> 2 -> 3，每节点 0.30+j0.10 pu），
   // 三种 ZIP 构成下末端电压不同。恒阻抗在电压跌落时少取功率，电压不会一路塌；
   // 恒功率最硬，实际取用的有功也不随电压下降。
