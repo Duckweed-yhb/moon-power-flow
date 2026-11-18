@@ -22,9 +22,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 求解器不含 C FFI，三个目标的数值行为应当一致（浮点末位差异走容差断言）；
+        # 求解器不含 C FFI，四个目标的数值行为应当一致（浮点末位差异走容差断言）；
         # 逐个跑，让「跨后端可用」是构建期事实而不是声明。
-        target: [wasm-gc, js, native]
+        target: [wasm, wasm-gc, js, native]
     steps:
       - uses: actions/checkout@v4
       - name: Setup MoonBit

@@ -34,8 +34,7 @@
 | 单相平衡示例（native） | `moon run examples/demo --target native` |
 | 规模实测：4 → 5000 节点（native） | `moon run examples/scale_demo --target native` |
 
-CI（`.github/workflows/ci.yml`）跑三件事：`moon fmt --check`；`wasm-gc` / `js` / `native` 三个目标各自的
-`check --deny-warn` + `build` + `test`；以及两个示例的 `moon run --target native`。
+CI 配置会检查格式，并在 wasm、wasm-gc、js、native 四个目标上分别运行严格编译检查、构建和测试。Native 还会运行三相馈线、单相基线、规模、非法输入和 ZIP 调压示例。
 
 ## 包结构
 
