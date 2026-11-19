@@ -215,43 +215,52 @@ pub fn VoltageCriterion::describe(self : VoltageCriterion) -> String {
 /// 按判据取受控母线的电压量。任一相模长为 0（该相断开）时控制律没有可读的
 /// 量，按输入错误拒绝，不产出调档轨迹。
 fn controlled_voltage(
-  v : Phasor,
+  solved : SweepOk,
+  node : Int32,
   criterion : VoltageCriterion,
+  supplied_only : Bool,
 ) -> Result[Double, OltcErr] {
+  let v = solved.voltages()[node]
   let va = @model.cx_abs(v.a())
   match criterion {
     PhaseA =>
-      if va > 0.0 {
+      if va > 0.0 && !va.is_inf() {
         Ok(va)
       } else {
         Err(
-          Control(
-            "controlled a-phase voltage is " +
-            va.to_string() +
-            ", tap control is undefined when that phase is open",
-          ),
+          Control("controlled a-phase voltage is invalid or the phase is open"),
         )
       }
     WorstPhase => {
-      let vb = @model.cx_abs(v.b())
-      let vc = @model.cx_abs(v.c())
-      let mut worst = va
-      if vb < worst {
-        worst = vb
-      }
-      if vc < worst {
-        worst = vc
-      }
-      if worst > 0.0 {
-        Ok(worst)
+      let mask = if supplied_only {
+        solved.supplied_phases(node).unwrap()
       } else {
-        Err(
-          Control(
-            "controlled phase voltage is " +
-            worst.to_string() +
-            ", tap control is undefined when a phase is open",
-          ),
-        )
+        Switch::closed()
+      }
+      let mut lowest : Double? = None
+      for
+        (use_phase, z) in [
+          (mask.a(), v.a()),
+          (mask.b(), v.b()),
+          (mask.c(), v.c()),
+        ] {
+        if use_phase {
+          let mag = @model.cx_abs(z)
+          if !(mag > 0.0) || mag.is_inf() {
+            return Err(
+              Control(
+                "controlled phase voltage is invalid or the phase is open",
+              ),
+            )
+          }
+          if lowest is None || mag < lowest.unwrap() {
+            lowest = Some(mag)
+          }
+        }
+      }
+      match lowest {
+        Some(mag) => Ok(mag)
+        None => Err(Control("no supplied phase at sensing bus"))
       }
     }
   }
@@ -391,8 +400,18 @@ pub fn scan_taps_zip_worst_phase(
   zip : @model.Zip,
   tol : Double,
   max_iter : Int32,
+  supplied_only~ : Bool = false,
 ) -> Result[Array[(Int32, Double)], OltcErr] {
-  scan_taps_zip_with(net, topo, oltc, zip, WorstPhase, tol, max_iter)
+  scan_taps_zip_with(
+    net,
+    topo,
+    oltc,
+    zip,
+    WorstPhase,
+    tol,
+    max_iter,
+    supplied_only~,
+  )
 }
 
 ///|
@@ -404,6 +423,7 @@ fn scan_taps_zip_with(
   criterion : VoltageCriterion,
   tol : Double,
   max_iter : Int32,
+  supplied_only~ : Bool = false,
 ) -> Result[Array[(Int32, Double)], OltcErr] {
   let (node, pe) = match controlled_indices(net, topo, oltc) {
     Ok(x) => x
@@ -424,7 +444,7 @@ fn scan_taps_zip_with(
       Ok(x) => x
       Err(e) => return Err(Sweep(e))
     }
-    let mag = match controlled_voltage(r.voltages()[node], criterion) {
+    let mag = match controlled_voltage(r, node, criterion, supplied_only) {
       Ok(m) => m
       Err(e) => return Err(e)
     }
@@ -492,6 +512,7 @@ pub fn run_oltc_zip_worst_phase(
   tol : Double,
   max_iter : Int32,
   max_moves : Int32,
+  supplied_only~ : Bool = false,
 ) -> Result[OltcRun, OltcErr] {
   run_oltc_with(
     net,
@@ -502,6 +523,7 @@ pub fn run_oltc_zip_worst_phase(
     tol,
     max_iter,
     max_moves,
+    supplied_only~,
   )
 }
 
@@ -516,6 +538,7 @@ fn run_oltc_with(
   tol : Double,
   max_iter : Int32,
   max_moves : Int32,
+  supplied_only~ : Bool = false,
 ) -> Result[OltcRun, OltcErr] {
   if max_moves < 0 {
     return Err(Control("max_moves must be non-negative"))
@@ -550,7 +573,7 @@ fn run_oltc_with(
       Ok(x) => x
       Err(e) => return Err(Sweep(e))
     }
-    let mag = match controlled_voltage(solved.voltages()[node], criterion) {
+    let mag = match controlled_voltage(solved, node, criterion, supplied_only) {
       Ok(m) => m
       Err(e) => return Err(e)
     }

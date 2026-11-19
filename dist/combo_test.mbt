@@ -170,3 +170,48 @@ test "a narrow deadband reports repeated reversal only after returning to a tap"
     assert_eq(run.tap_hunting(), budget >= 2)
   }
 }
+
+///|
+test "worst supplied phase can regulate an incomplete remote bus" {
+  let net = @dist.case_tx_oltc_open()
+  let topo = combo_topology(net)
+  let oltc = @dist.Oltc::new(3, 0, -8, 8, 0.0125, 1.0006, 0.0064)
+    .unwrap()
+    .with_sensing_bus(4)
+  let zip = @model.Zip::constant_power()
+  assert_true(
+    @dist.run_oltc_zip_worst_phase(net, topo, oltc, zip, 1.0e-12, 100, 8)
+    is Err(_),
+  )
+  let run = match
+    @dist.run_oltc_zip_worst_phase(
+      net,
+      topo,
+      oltc,
+      zip,
+      1.0e-12,
+      100,
+      8,
+      supplied_only=true,
+    ) {
+    Ok(r) => r
+    Err(e) => fail(e.describe())
+  }
+  let rows = match
+    @dist.scan_taps_zip_worst_phase(
+      net,
+      topo,
+      oltc,
+      zip,
+      1.0e-12,
+      100,
+      supplied_only=true,
+    ) {
+    Ok(r) => r
+    Err(e) => fail(e.describe())
+  }
+  assert_true(run.reached_band())
+  assert_eq(run.oltc().tap(), 1)
+  assert_true((rows[9].1 - 1.006278310612).abs() < 1.0e-9)
+  assert_eq(run.moves()[1].1, rows[9].1)
+}
