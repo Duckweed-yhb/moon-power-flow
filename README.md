@@ -1,6 +1,6 @@
 # moon-power-flow
 
-> 本地源码验证（2026-11-19）：Native、JS、Wasm、Wasm-GC 四个后端各通过 117/117 项测试，Native 严格编译检查通过。
+> 本地源码验证（2026-11-19）：Native、JS、Wasm、Wasm-GC 四个后端各通过 118/118 项测试，Native 严格编译检查通过。
 
 [English](./README.en.md)
 
@@ -15,7 +15,7 @@
 > ZIP 只含恒功率 / 恒电流 / 恒阻抗三项静特性。单相侧只做 1 Slack + 若干 PQ（另有 ZIP 变体）。
 > 计划项在「计划中」一节，不写成已实现。
 
-> 已发布：`Duckweed/moon-power-flow@0.2.2`（2026-11-19），`moon add Duckweed/moon-power-flow` 可安装。
+> 已发布：`Duckweed/moon-power-flow@0.2.3`（2026-11-19），`moon add Duckweed/moon-power-flow` 可安装。
 
 
 闭环调压后可调用 `run.tap_hunting()` 判断末三次求解是否出现 A→B→A 的档位往返，并用 `run.moves()` 查看对应电压；这有助于识别两个相邻档位分别落在死区两侧的情形。
@@ -27,7 +27,7 @@
 
 | 目的 | 命令 |
 |---|---|
-| 安装到其他 MoonBit 项目 | `moon add Duckweed/moon-power-flow@0.2.2` |
+| 安装到其他 MoonBit 项目 | `moon add Duckweed/moon-power-flow@0.2.3` |
 | 静态检查（native，警告即错误） | `moon check --target native --deny-warn` |
 | 运行测试（native） | `moon test --target native` |
 | 静态检查（wasm-gc） | `moon check --target wasm-gc --deny-warn` |
@@ -125,7 +125,7 @@ python -m http.server 8765             # 仓库根目录执行，然后打开 ht
 产物与页面同目录且不依赖 CDN，直接双击 `docs/demo/index.html` 也能看。档数写在 `examples/web_demo/main.mbt` 的网格里，改档数要同时改页面的滑块范围。GitHub Pages 托管需要在仓库设置里把 `docs/` 设为发布源，这一步不在仓库内。
 ## 已验证（本机实测，2026-11-17 复跑）
 
-- `moon test`：native、js、wasm、wasm-gc 各 **117/117**；包含上游断相传播及 ZIP 组合回归。
+- `moon test`：native、js、wasm、wasm-gc 各 **118/118**；包含上游断相传播及 ZIP 组合回归。
 - 本轮 `moon check --target native --deny-warn` 通过。
 - 变压器对照：k=1 与同阻抗普通线路逐位一致；k=1.05 抬高副边电压；漏阻抗越大副边越低；变压器馈线有功平衡成立；变压器挂在线路下游（馈线 → 变压器 → 负荷）时平衡同样成立，上游线路电流等于 k 倍副边电流。OLTC：参数非法被拒、档位—变比映射正确、上下限钳位、闭环调档不使目标更偏离、受控 a 相断开时报错而不是跑满调档次数；调档次数用尽时返回的档位与最后一条读数同档（旧实现在换档后直接退出，报的是没解过的新档，本轮修掉并加回归）。ZIP 调档：恒功率 ZIP 与 `run_oltc` 终档、调档轨迹、终止状态逐位一致；混合 (α=0.5 β=0.2 γ=0.3) 下照样进带；同一档位下恒阻抗负荷在低压侧少取（电压高于恒功率）、在高压侧多取（电压低于恒功率），修正方向随电压过额定而翻转；扫描覆盖 −6…+6 全部 13 档且电压随升档单调上升；普通线路与不存在的节点在扫描路径上同样报 `Control`。最差相判据：平衡算例下与 a 相判据逐档读数一致（差在浮点末位）；不平衡算例（a 相轻、b 相重）下 a 相判据停 0 档时最低相 0.975 仍在带外，最差相判据升到 1 档把最低相拉到 0.996；最差相判据下某相断开同样报 `Control`。缺相：断开相电流 / 电压为零，导通相照常，平衡按导通相成立。
 - 组合算例（同一次 `dist_demo` 输出的后半段）：线路 → 变压器 → 缺相线路，节点 3 作 OLTC 受控母线，目标 `0.97 ± 0.005 pu`。初始 `0.9946 pu` 高于带内上限，调档轨迹 `tap 0: 0.99455 > tap -1: 0.98203 > tap -2: 0.96950`，落到 `tap -2`（变比 `0.975`）进带；同一次解里 `|I_b| = 0`、`|V4_b| = 0`、`|V4_a| = 0.96867 pu`。变压器变比与缺相关联在同一条馈线上互不干扰。
@@ -142,7 +142,7 @@ python -m http.server 8765             # 仓库根目录执行，然后打开 ht
   （Python 独立实现前推回代）算出并写死在 `dist/fixtures_test.mbt`，
   不取自本库输出。
 - 单相侧：三节点算例 GS 8 次扫描收敛，Ybus 期望值由手算给出。
-- 安装版本为 `Duckweed/moon-power-flow@0.2.2`；调档边界、功率平衡校核与上游缺相传播修复都在这个版本里。
+- 安装版本为 `Duckweed/moon-power-flow@0.2.3`；调档边界、功率平衡校核与上游缺相传播修复都在这个版本里。
 
 ## 计划中（本轮未实现，不计入已交付）
 
