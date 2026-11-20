@@ -100,10 +100,13 @@ pub fn root_injection_power(net : DistNet, r : SweepOk) -> @model.Cx {
   for k in 0..<net.edge_count() {
     let e = net.edge_at(k)
     if e.from_id() == root_id || e.to_id() == root_id {
-      // 变压器：副边电流 I_sec，原边电流 I_pri = k · I_sec（k = V_sec/V_pri，
-      // 复功率守恒 S_pri = S_sec）。普通线路 k=1。
-      let ratio = if e.tx().enabled() { e.tx().ratio() } else { 1.0 }
-      let i = cur[k].scale(ratio)
+      // 变压器：副边电流 I_sec，原边电流 I_pri = k·T(-θ)·I_sec（k = V_sec/V_pri，
+      // 电压转 +θ、电流转 −θ，逐序复功率守恒 S_pri = S_sec）。普通线路 k=1、T 恒等。
+      let i = if e.tx().enabled() {
+        tx_primary_current(e.tx(), cur[k])
+      } else {
+        cur[k]
+      }
       let pa = @model.cx_mul(v_root.a(), @model.cx_conj(i.a()))
       let pb = @model.cx_mul(v_root.b(), @model.cx_conj(i.b()))
       let pc = @model.cx_mul(v_root.c(), @model.cx_conj(i.c()))

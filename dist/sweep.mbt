@@ -231,13 +231,14 @@ fn sweep_with_zip(
         let mut total = i_load
         for ch in children[u] {
           // 变压器支路存的是副边侧电流 I_sec，父节点在**原边**，累加时要按
-          // I_pri = k·I_sec 折算回原边。漏掉这一步时上游支路电流少一个 k 倍，
-          // 电压照样收敛，但根注入与「负荷 + 损耗」对不上。
+          // I_pri = k·T(-θ)·I_sec 折算回原边（θ 为组别相移，无相移时 T 是恒等算子）。
+          // 漏掉这一步时上游支路电流少一个 k 倍，电压照样收敛，
+          // 但根注入与「负荷 + 损耗」对不上。
           let ce = net.edge_at(parent_edge[ch])
           let i_ch = i_branch[parent_edge[ch]]
           total = total.add(
             if ce.tx().enabled() {
-              i_ch.scale(ce.tx().ratio())
+              tx_primary_current(ce.tx(), i_ch)
             } else {
               i_ch
             },
@@ -255,11 +256,11 @@ fn sweep_with_zip(
       if u != root {
         let pe = parent_edge[u]
         let e = net.edge_at(pe)
-        // 变压器支路：副边电压基准 = 变比 k × 原边电压，漏阻抗归算到副边；
-        // 普通线路：基准就是父节点电压，压降用线路 3x3 阻抗。
+        // 变压器支路：副边电压基准 = 组别相移后的原边电压 × 变比 k，
+        // 漏阻抗归算到副边；普通线路：基准就是父节点电压，压降用线路 3x3 阻抗。
         let tx = e.tx()
         let (z, base) = if tx.enabled() {
-          (tx.z(), v[parent[u]].scale(tx.ratio()))
+          (tx.z(), tx_secondary_voltage(tx, v[parent[u]]))
         } else {
           (e.z(), v[parent[u]])
         }

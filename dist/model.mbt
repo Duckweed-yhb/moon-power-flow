@@ -226,18 +226,20 @@ pub fn DistNode::s(self : DistNode) -> Phasor {
 /// - `ratio` 为副边 / 原边的非额定变比 k，空载时 `V_sec ≈ k · V_pri`；
 ///   k=1 表示额定变比、无变比偏移；
 /// - `z` 为归算到副边（下游侧）的漏阻抗 3x3 矩阵；
-/// - 不建励磁支路、不建相移（DY11 组别相位差不在本轮范围）。
+/// - `shift_deg` 为组别相移（度，正序 +θ、负序 −θ），0 表示不建模相移；
+/// - 不建励磁支路。
 pub struct TxSpec {
   ratio : Double
   z : Z3
   enabled : Bool
+  shift_deg : Double
 }
 
 ///|
-/// 非变压器支路的占位参数：变比 1、阻抗不参与计算。
+/// 非变压器支路的占位参数：变比 1、相移 0、阻抗不参与计算。
 pub fn TxSpec::disabled() -> TxSpec {
   let zero = @model.cx(0.0, 0.0)
-  { ratio: 1.0, z: z3_diag(zero, zero, zero), enabled: false, }
+  { ratio: 1.0, z: z3_diag(zero, zero, zero), enabled: false, shift_deg: 0.0, }
 }
 
 ///|
@@ -256,7 +258,23 @@ pub fn TxSpec::new(ratio : Double, z : Z3) -> Result[TxSpec, String] {
   if all_zero {
     return Err("transformer leakage impedance must not be all zero")
   }
-  Ok({ ratio, z, enabled: true, })
+  Ok({ ratio, z, enabled: true, shift_deg: 0.0, })
+}
+
+///|
+/// 组别相移（度）：正序旋转，负序反向；0 表示按纯变比处理。
+pub fn TxSpec::phase_shift_deg(self : TxSpec) -> Double {
+  self.shift_deg
+}
+
+///|
+/// 复制变压器参数并设置组别相移；非有限角度直接返回原值（不抛错，便于读档时容错）。
+/// 正序按 +deg、负序按 −deg 旋转，零序不动，详见 `dist/txshift.mbt`。
+pub fn TxSpec::with_phase_shift(self : TxSpec, deg : Double) -> TxSpec {
+  if deg != deg || deg.abs() > 1.0e308 {
+    return self
+  }
+  { ratio: self.ratio, z: self.z, enabled: self.enabled, shift_deg: deg }
 }
 
 ///|
@@ -341,9 +359,14 @@ pub fn DistEdge::make_tx(
 }
 
 ///|
-/// 复制支路并替换变压器变比（OLTC 调档时用，漏阻抗与端点不变）。
+/// 复制支路并替换变压器变比（OLTC 调档时用，漏阻抗、组别相移与端点不变）。
 pub fn DistEdge::with_ratio(self : DistEdge, ratio : Double) -> DistEdge {
-  let tx = { ratio, z: self.tx.z(), enabled: true, }
+  let tx = {
+    ratio,
+    z: self.tx.z(),
+    enabled: true,
+    shift_deg: self.tx.phase_shift_deg(),
+  }
   { from_id: self.from_id, to_id: self.to_id, z: self.z, tx, sw: self.sw, }
 }
 
