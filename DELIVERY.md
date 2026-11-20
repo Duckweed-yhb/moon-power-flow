@@ -14,7 +14,7 @@
 | 项 | 申报书 | 现在 |
 |---|---|---|
 | 版本 | 0.1.3 | **0.2.3**（mooncakes 最新，2026-11-19 发布） |
-| 单测 | 29 | **118**（native / js / wasm-gc / wasm 各 118） |
+| 单测 | 29 | **124**（native / js / wasm-gc / wasm 各 124） |
 | 后端覆盖 | wasm-gc / native / js 三后端 | **wasm / wasm-gc / js / native 四后端** |
 | commits | 29 | 持续追加（提交数以 `git log` 为准；是否已推送看 `git log origin/main..HEAD`） |
 | 包 | `dist/` `model/` `ybus/` `solver/` `cases/` | 同左（包结构未变，包内新增模块） |
