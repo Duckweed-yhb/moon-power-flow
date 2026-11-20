@@ -123,7 +123,7 @@ python -m http.server 8765             # 仓库根目录执行，然后打开 ht
 ```
 
 产物与页面同目录且不依赖 CDN，直接双击 `docs/demo/index.html` 也能看。档数写在 `examples/web_demo/main.mbt` 的网格里，改档数要同时改页面的滑块范围。GitHub Pages 托管需要在仓库设置里把 `docs/` 设为发布源，这一步不在仓库内。
-## 已验证（本机实测，2026-11-17 复跑）
+## 已验证（本机实测，2026-11-20 复跑）
 
 - `moon test`：native、js、wasm、wasm-gc 各 **124/124**；包含上游断相传播及 ZIP 组合回归。
 - 本轮 `moon check --target native --deny-warn` 通过。

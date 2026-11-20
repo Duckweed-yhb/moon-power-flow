@@ -93,7 +93,7 @@ python -m http.server 8765             # run from the repo root, then open http:
 
 The artifact sits next to the page and needs no CDN, so opening `docs/demo/index.html` directly also works. Grid sizes live in `examples/web_demo/main.mbt`, and changing them means updating the slider range in the page as well. GitHub Pages hosting needs `docs/` to be set as the publishing source in the repository settings; that step is outside the repo.
 
-## Verified (local runs, 2026-11-15)
+## Verified (local runs, 2026-11-20)
 
 - Current working tree: native, js, wasm and wasm-gc each pass 124/124.
 - This round: `moon check --target native --deny-warn` passed.
