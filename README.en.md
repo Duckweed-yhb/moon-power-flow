@@ -26,6 +26,8 @@ Local toolchain: moon 0.1.20261104 (moonc v0.10.20+65efd5b93). Run commands from
 | Three-phase distribution demo (native) | `moon run examples/dist_demo --target native` |
 | Single-phase balanced demo (native) | `moon run examples/demo --target native` |
 
+The mooncakes namespace is `Duckweed` while the GitHub repository lives under the `Duckweed-yhb` account. Same author: `moon add` uses the former, repository URLs use the latter.
+
 CI (`.github/workflows/ci.yml`) runs `moon fmt --check`, a wasm / wasm-gc / js / native matrix of `check --deny-warn` + `build` + `test`, plus native example runs.
 
 ## Package layout

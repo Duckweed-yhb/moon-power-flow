@@ -17,6 +17,7 @@
 
 > 已发布：`Duckweed/moon-power-flow@0.2.3`（2026-11-19），`moon add Duckweed/moon-power-flow` 可安装。
 
+包在 mooncakes 上的命名空间是 `Duckweed`，GitHub 仓库挂在 `Duckweed-yhb` 账号下。两者是同一位作者，`moon add` 用前者，仓库地址用后者。
 
 闭环调压后可调用 `run.tap_hunting()` 判断末三次求解是否出现 A→B→A 的档位往返，并用 `run.moves()` 查看对应电压；这有助于识别两个相邻档位分别落在死区两侧的情形。
 
