@@ -42,8 +42,12 @@ test "sequence rotation advances a balanced set by the shift angle" {
   assert_true(txs_near(@model.cx_abs(r.b()), 1.0, 1.0e-12))
   assert_true(txs_near(@model.cx_abs(r.c()), 1.0, 1.0e-12))
   assert_true(txs_near(@model.cx_arg(r.a()), pi / 6.0, 1.0e-12))
-  assert_true(txs_near(@model.cx_arg(r.b()), pi / 6.0 - 2.0 * pi / 3.0, 1.0e-12))
-  assert_true(txs_near(@model.cx_arg(r.c()), pi / 6.0 + 2.0 * pi / 3.0, 1.0e-12))
+  assert_true(
+    txs_near(@model.cx_arg(r.b()), pi / 6.0 - 2.0 * pi / 3.0, 1.0e-12),
+  )
+  assert_true(
+    txs_near(@model.cx_arg(r.c()), pi / 6.0 + 2.0 * pi / 3.0, 1.0e-12),
+  )
 }
 
 ///|
@@ -51,9 +55,15 @@ test "sequence rotation advances a balanced set by the shift angle" {
 test "sequence rotation round trip restores the phasor" {
   let bal = @dist.Phasor::balanced(1.0, 0.2)
   let back = @dist.sequence_rotate(@dist.sequence_rotate(bal, 37.0), -37.0)
-  assert_true(txs_near(@model.cx_abs(@model.cx_sub(back.a(), bal.a())), 0.0, 1.0e-12))
-  assert_true(txs_near(@model.cx_abs(@model.cx_sub(back.b(), bal.b())), 0.0, 1.0e-12))
-  assert_true(txs_near(@model.cx_abs(@model.cx_sub(back.c(), bal.c())), 0.0, 1.0e-12))
+  assert_true(
+    txs_near(@model.cx_abs(@model.cx_sub(back.a(), bal.a())), 0.0, 1.0e-12),
+  )
+  assert_true(
+    txs_near(@model.cx_abs(@model.cx_sub(back.b(), bal.b())), 0.0, 1.0e-12),
+  )
+  assert_true(
+    txs_near(@model.cx_abs(@model.cx_sub(back.c(), bal.c())), 0.0, 1.0e-12),
+  )
   // 不平衡集：三相模长不同、b 相再偏 15°。
   let pi = 3.141592653589793
   let un = @dist.phasor(
@@ -62,9 +72,15 @@ test "sequence rotation round trip restores the phasor" {
     @model.cx_polar(1.05, 2.0 * pi / 3.0 - 5.0 * pi / 180.0),
   )
   let un_back = @dist.sequence_rotate(@dist.sequence_rotate(un, 25.0), -25.0)
-  assert_true(txs_near(@model.cx_abs(@model.cx_sub(un_back.a(), un.a())), 0.0, 1.0e-12))
-  assert_true(txs_near(@model.cx_abs(@model.cx_sub(un_back.b(), un.b())), 0.0, 1.0e-12))
-  assert_true(txs_near(@model.cx_abs(@model.cx_sub(un_back.c(), un.c())), 0.0, 1.0e-12))
+  assert_true(
+    txs_near(@model.cx_abs(@model.cx_sub(un_back.a(), un.a())), 0.0, 1.0e-12),
+  )
+  assert_true(
+    txs_near(@model.cx_abs(@model.cx_sub(un_back.b(), un.b())), 0.0, 1.0e-12),
+  )
+  assert_true(
+    txs_near(@model.cx_abs(@model.cx_sub(un_back.c(), un.c())), 0.0, 1.0e-12),
+  )
 }
 
 ///|
@@ -75,7 +91,13 @@ test "zero shift keeps the transformer solution bit-identical" {
   let tx = base.edge_at(0).tx().with_phase_shift(0.0)
   let net2 = @dist.DistNet::make(
     base.nodes(),
-    [@dist.DistEdge::make_tx(base.edge_at(0).from_id(), base.edge_at(0).to_id(), tx)],
+    [
+      @dist.DistEdge::make_tx(
+        base.edge_at(0).from_id(),
+        base.edge_at(0).to_id(),
+        tx,
+      ),
+    ],
     base.root_id(),
     base.v_root(),
   )
@@ -128,7 +150,13 @@ test "phase shifted transformer feeder keeps the power balance" {
   let tx = base.edge_at(0).tx().with_phase_shift(30.0)
   let net2 = @dist.DistNet::make(
     base.nodes(),
-    [@dist.DistEdge::make_tx(base.edge_at(0).from_id(), base.edge_at(0).to_id(), tx)],
+    [
+      @dist.DistEdge::make_tx(
+        base.edge_at(0).from_id(),
+        base.edge_at(0).to_id(),
+        tx,
+      ),
+    ],
     base.root_id(),
     base.v_root(),
   )

@@ -274,7 +274,7 @@ pub fn TxSpec::with_phase_shift(self : TxSpec, deg : Double) -> TxSpec {
   if deg != deg || deg.abs() > 1.0e308 {
     return self
   }
-  { ratio: self.ratio, z: self.z, enabled: self.enabled, shift_deg: deg }
+  { ratio: self.ratio, z: self.z, enabled: self.enabled, shift_deg: deg, }
 }
 
 ///|
