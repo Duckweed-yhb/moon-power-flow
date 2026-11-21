@@ -75,10 +75,11 @@ test "open_phase flips only the requested phase" {
 }
 
 ///|
-/// 变压器高压侧 b 相断开：副边 b 相没有电压，支路 b 相电流为零；a/c 两相
+/// 变压器支路 b 相断开：副边 b 相没有电压，支路 b 相电流为零；a/c 两相
 /// 仍经变比与漏阻抗送到负荷，根注入按导通两相与损耗平衡。断点落在变压器
-/// 支路上，这条用例同时走了一遍原边电流折算。
-test "transformer high-side open phase kills only that phase downstream" {
+/// 支路上，这条用例同时走了一遍原边电流折算。变压器按串联支路建模，
+/// 两侧是同一条支路，用例名不再区分高压 / 低压侧。
+test "transformer branch open phase kills only that phase downstream" {
   let net = @dist.case_tx_open_phase()
   let r = open_solve(net)
   let i = r.branch_currents()[0]
