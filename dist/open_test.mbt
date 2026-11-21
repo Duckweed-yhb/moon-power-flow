@@ -75,6 +75,29 @@ test "open_phase flips only the requested phase" {
 }
 
 ///|
+/// 变压器高压侧 b 相断开：副边 b 相没有电压，支路 b 相电流为零；a/c 两相
+/// 仍经变比与漏阻抗送到负荷，根注入按导通两相与损耗平衡。断点落在变压器
+/// 支路上，这条用例同时走了一遍原边电流折算。
+test "transformer high-side open phase kills only that phase downstream" {
+  let net = @dist.case_tx_open_phase()
+  let r = open_solve(net)
+  let i = r.branch_currents()[0]
+  let v = r.voltages()[1]
+  assert_true(@model.cx_abs(i.b()) == 0.0)
+  assert_true(@model.cx_abs(v.b()) == 0.0)
+  assert_true(@model.cx_abs(i.a()) > 0.0)
+  assert_true(@model.cx_abs(i.c()) > 0.0)
+  assert_true(@model.cx_abs(v.a()) > 0.0 && @model.cx_abs(v.a()) < 1.0)
+  assert_true(@model.cx_abs(v.c()) > 0.0 && @model.cx_abs(v.c()) < 1.0)
+  let loss = @dist.total_loss_active(net, r)
+  let s = net.node_at(1).s()
+  let served = s.a().re + s.c().re
+  let inject = @dist.root_injection_active(net, r)
+  assert_true(loss >= 0.0)
+  assert_true(open_near(inject, served + loss, 1.0e-9))
+}
+
+///|
 /// 缺相馈线仍能算损耗与功率平衡：断开相不消耗、不传导，平衡按导通相成立。
 test "open-phase feeder keeps power balance on the closed phases" {
   let net = @dist.case_with_open_phase()

@@ -118,6 +118,31 @@ pub fn case_with_open_phase() -> DistNet {
 }
 
 ///|
+/// 变压器高压侧缺相算例：1 → 2 为变比 1.0、漏阻抗 0.02+j0.04 p.u. 的变压器，
+/// 高压侧 b 相断开；节点 2 三相都挂负荷。
+///
+/// 与 `case_with_open_phase` 的区别在于断点落在变压器支路上：这里要同时验证
+/// 「断开相在副边也没有电压」「原边折算过去的该相电流为零」「其余两相仍能
+/// 经变压器供负荷」。线路上的单相断开覆盖不到这条折算路径。
+pub fn case_tx_open_phase() -> DistNet {
+  let zt = @model.cx(0.02, 0.04)
+  let tx = match TxSpec::new(1.0, z3_diag(zt, zt, zt)) {
+    Ok(t) => t
+    Err(_) => TxSpec::disabled()
+  }
+  let s = phasor(
+    @model.cx(0.08, 0.02),
+    @model.cx(0.06, 0.02),
+    @model.cx(0.08, 0.02),
+  )
+  let nodes = [DistNode::make(1, Phasor::zero()), DistNode::make(2, s)]
+  let edges = [
+    DistEdge::make_tx(1, 2, tx).with_switch(Switch::closed().open_phase(1)),
+  ]
+  DistNet::make(nodes, edges, 1, Phasor::balanced(1.0, 0.0))
+}
+
+///|
 /// 编号乱序的算例：根是 10，中间节点 7，末端 3，节点表顺序也不是拓扑序。
 /// 用来验证拓扑与求解按 BFS 走，而不是依赖编号或数组顺序。
 pub fn case_scrambled_ids() -> DistNet {

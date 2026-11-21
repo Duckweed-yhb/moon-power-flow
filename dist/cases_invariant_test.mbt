@@ -60,6 +60,7 @@ test "every built-in case is radial and converges" {
     @dist.case_scrambled_ids(),
     @dist.case_with_transformer(),
     @dist.case_with_open_phase(),
+    @dist.case_tx_open_phase(),
   ]
   for net in cases {
     let topo = match @dist.build_topology(net) {
