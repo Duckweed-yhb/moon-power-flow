@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+（暂无）
+
+## [0.2.4] - 2026-11-22
+
 ### Added
 
 - `TxSpec` 增加组别相移 `shift_deg`（度，默认 0）：`with_phase_shift(deg)` 设置、`phase_shift_deg()` 读取，非有限角度直接忽略。相移按对称分量逐序旋转，正序 +θ、负序 −θ、零序不动，落在新文件 `dist/txshift.mbt`（`sym_parts` / `sequence_rotate` / `tx_secondary_voltage` / `tx_primary_current`）。前推 `V_sec = k·T(θ)·V_pri − Z_t·I_sec`、回代 `I_pri = k·T(−θ)·I_sec`，`root_injection_power` 同步换成同一个折算函数，逐序复功率守恒。零序通路未建模，含零序的不平衡工况下零序不随组别旋转是近似，README 已写明。回归六条：平衡集 +30° 各相模长不变、相角整体前移；+θ 再 −θ 复原（平衡与不平衡集都测）；零相移与旧解逐位一致；±30° 两台同参数变压器副边相角差 60°、模长相同；带相移时根注入 = 负荷 + 损耗；OLTC 的 `with_ratio` 保留相移、非有限角度不写入。

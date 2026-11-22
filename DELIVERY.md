@@ -13,7 +13,7 @@
 
 | 项 | 申报书 | 现在 |
 |---|---|---|
-| 版本 | 0.1.3 | **0.2.3**（mooncakes 最新，2026-11-19 发布） |
+| 版本 | 0.1.3 | **0.2.4**（mooncakes 最新，2026-11-22 发布） |
 | 单测 | 29 | **125**（native / js / wasm-gc / wasm 各 125） |
 | 后端覆盖 | wasm-gc / native / js 三后端 | **wasm / wasm-gc / js / native 四后端** |
 | commits | 29 | 持续追加（提交数以 `git log` 为准；是否已推送看 `git log origin/main..HEAD`） |
@@ -65,7 +65,7 @@ moon run examples/reject_demo --target native  # 每条拒绝路径
 
 ## 五、发布状态
 
-- mooncakes：`Duckweed/moon-power-flow@0.2.3`（Latest，2026-11-19）。
+- mooncakes：`Duckweed/moon-power-flow@0.2.4`（Latest，2026-11-22）。
 - GitHub 远程 tag 仍只到 **v0.1.3**；本地已打 `v0.2.3`，等本人 push 后远程才对齐。**以 mooncakes 上的版本为准**。
 
 ## 六、当前边界（不做的事）
