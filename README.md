@@ -96,8 +96,7 @@ moon-power-flow/
 - 中性点位移（`dist/neutral.mbt`，四线制一阶近似）：中性导体与相导体同拓扑，支路中性电流取三相电流之和的相反数。`neutral_voltages` 接受统一中性阻抗，`neutral_voltages_per_edge` 接受逐支路阻抗数组（真机上各段导线截面不同）；`phase_to_neutral` 给负荷端「相对中性点」的相电压。示例里四节点算例的中性点漂移约 `0.0017–0.0026 p.u.`，a 相相对中性点压到 `0.994–0.996 p.u.`、b 相被抬到 `1.0006–1.0014 p.u.` —— 这是三相不平衡配电网里最容易被忽略的一段。
 - 支路损耗与功率平衡（`dist/loss.mbt`）：逐相 `S_p = (Z3·I)_p · conj(I_p)`，相间互阻抗
   已包含在 `(Z3·I)` 里；`branch_losses` 给每条支路三相损耗，`total_loss_active` 给全网有功
-  损耗，`served_load_demand_active(net, result)` 与 `root_injection_active` 用于恒功率负荷的供电功率平衡校验；`load_demand_active(net)` 保留名义需求语义。验收判据不是参考数据，
-  而是守恒律：根注入 = 负荷需求 + 损耗。四节点算例实测 0.30046496 = 0.3 + 0.00046496，
+  损耗，`served_load_demand_active(net, result)` 与 `root_injection_active` 用于恒功率负荷的供电功率平衡校验；`load_demand_active(net)` 保留名义需求语义。校验使用功率守恒关系：根注入 = 负荷需求 + 损耗。四节点算例实测 0.30046496 = 0.3 + 0.00046496，
   残差 −6.5e−11 p.u.。
 
 ### 单相平衡（`model/` + `ybus/` + `solver/`，对照）
@@ -190,13 +189,9 @@ python -m http.server 8765             # 仓库根目录执行，然后打开 ht
 - GitHub 公开仓库 `Zcxssxx/gridflow`（https://github.com/Zcxssxx/gridflow ，Apache-2.0）：MoonBit 写的平衡正序 AC 潮流库，极坐标牛顿-拉夫逊，PQ/PV/slack，MATPOWER case 文件子集，PGLib-OPF 14/30/118 母线验证；该仓库尚未发布到 mooncakes.io（`moon view Zcxssxx/gridflow` 返回 404，`moon search gridflow` 无命中）。它对应**平衡正序**方向，与本库三相不平衡主线不同。
 - 差异：本库主线是**三相不平衡配电**（每相独立负荷、3x3 相间耦合阻抗、辐射状前推回代），gridflow 明确不覆盖 unbalanced distribution models；单相 GS 部分只作对照基线，不作为主卖点。
 
-## AI 工具使用说明
+## 测试依据
 
-开发使用了 AI 编程工具，选题、边界与质量由本人把控。
-
-- AI 辅助：包骨架、测试初稿、文档初稿。
-- 人工把控：选题转向（平衡正序 GS → 三相不平衡前推回代）、与 gridflow 的差异判断、拓扑校验规则、Python 独立基准的参数与容差设定。
-- AI 生成的测试逐条对照教材公式核过断言，三后端全绿才合并。
+三相馈线算例使用独立的 Python 节点方程计算参考电压。
 
 ## 许可证
 
