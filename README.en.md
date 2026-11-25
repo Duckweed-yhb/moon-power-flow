@@ -1,6 +1,6 @@
 # moon-power-flow
 
-> Local verification (2026-11-25): native, js, wasm-gc and wasm each pass 127/127 tests.
+> Local verification (2026-11-25): native, js, wasm-gc and wasm each pass 128/128 tests.
 
 [中文](./README.md) · English
 
@@ -97,7 +97,7 @@ The artifact sits next to the page and needs no CDN, so opening `docs/demo/index
 
 ## Verified (local runs, 2026-11-20)
 
-- Current working tree: native, js, wasm and wasm-gc each pass 127/127.
+- Current working tree: native, js, wasm and wasm-gc each pass 128/128.
 - This round: `moon check --target native --deny-warn` passed.
 - Transformer comparison: k=1 matches a plain line bit-for-bit; k=1.05 raises secondary voltage; larger leakage lowers it; transformer feeder active-power balance holds. A transformer placed behind a line keeps the balance too, and the upstream line current equals `k` times the secondary current. OLTC: invalid config rejected, tap-ratio mapping correct, limits clamped, closed loop does not worsen the target, open controlled phase reports an error instead of exhausting the move budget. ZIP regulation: a constant-power ZIP reproduces `run_oltc`'s final tap, move trace and stop state bit for bit; a mixed load (alpha=0.5 beta=0.2 gamma=0.3) still lands in band; at the same tap a constant-impedance load draws less below nominal (higher voltage than constant power) and more above nominal (lower voltage), so the correction flips sign across rated voltage; the scan covers all 13 taps from -6 to +6 with voltage rising monotonically; a plain line and a missing node both report `Control` on the scan path too. Open phase: open phase current/voltage zero, closed phases normal, balance on closed phases; the same holds when the break sits on the transformer branch (the transformer is modelled as one series branch, so both sides are the same branch) - secondary b-phase voltage and branch b-phase current are zero while a/c still reach the load through the ratio and leakage impedance.
 - Combined case (second half of the same `dist_demo` output): line → transformer → open-phase line, node 3 is the OLTC controlled bus with target `0.97 ± 0.005 pu`. The initial `0.9946 pu` sits above the band, so the tap walk is `tap 0: 0.99455 > tap -1: 0.98203 > tap -2: 0.96950`, settling at `tap -2` (ratio `0.975`) inside the band; in the same solution `|I_b| = 0`, `|V4_b| = 0`, `|V4_a| = 0.96867 pu`. The transformer ratio and the open-phase switch do not mask each other.
