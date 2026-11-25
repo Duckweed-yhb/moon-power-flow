@@ -183,3 +183,18 @@ test "with_ratio preserves the group shift and invalid shift is ignored" {
   let nan = tx.with_phase_shift(inf_deg - inf_deg)
   assert_true(txs_near(nan.phase_shift_deg(), 15.0, 1.0e-12))
 }
+
+///|
+test "transformer phase shifts repeat exactly at a full turn" {
+  let v = @dist.Phasor::balanced(1.0, 0.2)
+  for turns in [360.0, -720.0] {
+    assert_eq(@dist.sequence_rotate(v, turns).a().re, v.a().re)
+  }
+  for degrees in [390.0, -390.0, 1.0e308] {
+    let actual = @dist.sequence_rotate(v, degrees)
+    let expected = @dist.sequence_rotate(v, degrees % 360.0)
+    assert_eq(actual.a().re, expected.a().re)
+    assert_eq(actual.a().im, expected.a().im)
+    assert_true((@model.cx_abs(actual.a()) - 1.0).abs() < 1.0e-12)
+  }
+}

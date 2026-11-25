@@ -176,3 +176,59 @@ pub fn Topology::reverse_order(self : Topology) -> Array[Int32] {
   }
   out
 }
+
+///|
+/// Validate the reusable traversal before indexing solver or postprocessing arrays.
+fn Topology::matches_network(
+  self : Topology,
+  net : DistNet,
+  root : Int32,
+) -> Bool {
+  let n = net.node_count()
+  if net.edge_count() != n - 1 ||
+    self.order.length() != n ||
+    self.parent.length() != n ||
+    self.parent_edge.length() != n ||
+    self.children.length() != n ||
+    self.order[0] != root {
+    return false
+  }
+  let visited = Array::make(n, false)
+  let listed = Array::make(n, false)
+  for u in self.order {
+    if u < 0 || u >= n || visited[u] {
+      return false
+    }
+    let parent = self.parent[u]
+    let pe = self.parent_edge[u]
+    if u == root {
+      if parent != -1 || pe != -1 {
+        return false
+      }
+    } else {
+      if parent < 0 ||
+        parent >= n ||
+        !visited[parent] ||
+        !listed[u] ||
+        pe < 0 ||
+        pe >= net.edge_count() {
+        return false
+      }
+      let edge = net.edge_at(pe)
+      let pid = net.node_at(parent).id()
+      let uid = net.node_at(u).id()
+      if !((edge.from_id() == pid && edge.to_id() == uid) ||
+        (edge.from_id() == uid && edge.to_id() == pid)) {
+        return false
+      }
+    }
+    visited[u] = true
+    for child in self.children[u] {
+      if child < 0 || child >= n || listed[child] || self.parent[child] != u {
+        return false
+      }
+      listed[child] = true
+    }
+  }
+  true
+}

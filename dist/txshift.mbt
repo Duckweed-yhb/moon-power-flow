@@ -12,7 +12,7 @@
 // 正负序同向旋转，组别相位差就不对了（不平衡度也不会按变压器的方式变化）。
 
 ///|
-/// 把一个三相相量分解成正序 / 负序 / 零序三个分量。
+/// 把一个三相相量分解成零序、正序、负序三个分量，按 (V0, V1, V2) 返回。
 ///
 /// 约定：a 相为参考，b 相滞后 120°、c 相超前 120° 的平衡集是正序。
 pub fn sym_parts(x : Phasor) -> (@model.Cx, @model.Cx, @model.Cx) {
@@ -43,14 +43,15 @@ pub fn sym_parts(x : Phasor) -> (@model.Cx, @model.Cx, @model.Cx) {
 ///
 /// `deg` 为 0 或非有限值时原样返回（读档与缺省参数都走这条路，不抛错）。
 pub fn sequence_rotate(x : Phasor, deg : Double) -> Phasor {
-  if deg == 0.0 || deg != deg || deg.abs() > 1.0e308 {
+  let degrees = deg % 360.0
+  if degrees == 0.0 || degrees.is_nan() {
     return x
   }
   let pi = 3.141592653589793
   let a = @model.cx_polar(1.0, 2.0 * pi / 3.0)
   let a2 = @model.cx_polar(1.0, -2.0 * pi / 3.0)
   let (v0, v1, v2) = sym_parts(x)
-  let th = deg * pi / 180.0
+  let th = degrees * pi / 180.0
   let p = @model.cx_mul(v1, @model.cx_polar(1.0, th))
   let n = @model.cx_mul(v2, @model.cx_polar(1.0, -th))
   phasor(

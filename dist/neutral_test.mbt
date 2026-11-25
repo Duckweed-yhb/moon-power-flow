@@ -245,3 +245,25 @@ test "per edge neutral impedance rejects mismatched length" {
   let too_few : Array[@model.Cx] = [@model.cx(0.01, 0.0)]
   assert_eq(@dist.neutral_voltages_per_edge(net, topo, r, too_few).length(), 0)
 }
+
+///|
+test "invalid traversal is rejected by both sweep and neutral postprocessing" {
+  let net = @dist.case_four_node()
+  let topo = @dist.build_topology(net).unwrap()
+  let r = @dist.sweep(net, topo, 1.0e-12, 100).unwrap()
+  for defect in 0..<3 {
+    let bad = @dist.build_topology(net).unwrap()
+    match defect {
+      0 => bad.order()[1] = net.node_count()
+      1 => bad.order()[1] = bad.order()[0]
+      _ => bad.children()[bad.order()[0]].clear()
+    }
+    assert_true(
+      @dist.sweep(net, bad, 1.0e-12, 100)
+      is Err(@dist.SweepErr::TopologyMismatch),
+    )
+    assert_true(
+      @dist.neutral_voltages(net, bad, r, @model.cx(0.01, 0.0)).is_empty(),
+    )
+  }
+}

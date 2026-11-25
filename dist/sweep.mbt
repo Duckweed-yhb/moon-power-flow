@@ -143,11 +143,6 @@ fn sweep_with_zip(
   if !(tol > 0.0) || tol > 1.0e308 {
     return Err(SweepErr::InvalidConfig)
   }
-  // 拓扑必须是同一次 build_topology 的产物：数组长度与支路下标都要落在范围内，
-  // 否则下面的 i_branch[parent_edge[u]] 会越界 panic（库不该用 panic 报错）。
-  if topo.parent_edge().length() != n || topo.parent().length() != n {
-    return Err(SweepErr::TopologyMismatch)
-  }
   let slack = net.v_root().max_abs()
   if slack.is_nan() || slack.is_inf() {
     return Err(SweepErr::NonFinite(0))
@@ -156,32 +151,8 @@ fn sweep_with_zip(
     Some(k) => k
     None => return Err(SweepErr::Topology(RootNotFound))
   }
-  // 只有根节点的父边是 -1，其余必须落在 [0, m)，而且该父边必须真的连接
-  // 「父节点 → 本节点」。只查下标范围挡不住「同规模、同根、不同树」的另一张网
-  // （根下标相同、父子关系不同），那种情况下回代会沿错误的边累加电流，
-  // 算出来的电压与损耗都是错的，但所有自检照样通过。
-  for u in 0..<n {
-    let pe = topo.parent_edge()[u]
-    if pe == -1 {
-      if u != root {
-        return Err(SweepErr::TopologyMismatch)
-      }
-    } else if pe < 0 || pe >= m {
-      return Err(SweepErr::TopologyMismatch)
-    } else {
-      let pu = topo.parent()[u]
-      if pu < 0 || pu >= n {
-        return Err(SweepErr::TopologyMismatch)
-      }
-      let e = net.edge_at(pe)
-      let uid = net.node_at(u).id()
-      let pid = net.node_at(pu).id()
-      let connected = (e.from_id() == pid && e.to_id() == uid) ||
-        (e.from_id() == uid && e.to_id() == pid)
-      if !connected {
-        return Err(SweepErr::TopologyMismatch)
-      }
-    }
+  if !topo.matches_network(net, root) {
+    return Err(SweepErr::TopologyMismatch)
   }
   // 平坦启动：全部母线取根电压。
   let v_root = net.v_root()

@@ -51,18 +51,17 @@ pub fn neutral_voltages_per_edge(
   let out : Array[@model.Cx] = []
   // 拓扑、电流、阻抗三者必须来自同一张网：对不上就返回空，不越界 panic，
   // 也不假装「中性点不漂」。
-  if topo.parent().length() != n ||
-    topo.parent_edge().length() != n ||
-    r.branch_currents().length() != net.edge_count() ||
-    z_edges.length() != net.edge_count() {
+  let root = match net.find_index(net.root_id()) {
+    Some(k) => k
+    None => return out
+  }
+  if r.branch_currents().length() != net.edge_count() ||
+    z_edges.length() != net.edge_count() ||
+    !topo.matches_network(net, root) {
     return out
   }
   for _ in 0..<n {
     out.push(zero)
-  }
-  let root = match net.find_index(net.root_id()) {
-    Some(k) => k
-    None => return out
   }
   let order = topo.order()
   let parent = topo.parent()
@@ -72,10 +71,6 @@ pub fn neutral_voltages_per_edge(
     if u != root {
       let pu = parent[u]
       let pe = parent_edge[u]
-      // 防御：拓扑若被外部构造得不完整，宁可跳过这个节点也不越界 panic。
-      if pu < 0 || pe < 0 || pe >= currents.length() {
-        continue
-      }
       let i = currents[pe]
       // 中性电流 = 该支路三相电流之和取反。
       let i_n = @model.cx_neg(@model.cx_add(@model.cx_add(i.a(), i.b()), i.c()))
