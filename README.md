@@ -196,3 +196,5 @@ python -m http.server 8765             # 仓库根目录执行，然后打开 ht
 ## 许可证
 
 MIT，详见 `LICENSE`。来源、参考项目、测试数据与 AI 使用范围见 [`PROVENANCE.md`](PROVENANCE.md)。
+
+运行 `moon run examples/dist_demo --target native` 可对照同一平衡馈线的 −30°、0°、+30° 变压器相移。副边正序电压幅值均为 0.996784 pu，相角分别为 −30.1954°、−0.1954°、29.8046°，VUF 在浮点精度内为零。

@@ -129,6 +129,7 @@ fn main raise {
   println(
     "== 变压器 + OLTC + 缺相（1 -线路-> 2 -变压器-> 3 -缺相-> 4）==",
   )
+  show_shift_comparison()
   let combo = @dist.case_tx_oltc_open()
   let combo_topo = match @dist.build_topology(combo) {
     Ok(t) => t
@@ -306,5 +307,37 @@ fn main raise {
       Err(e) => fail("tap " + tap.to_string() + ": " + e.describe())
     }
     tap += 1
+  }
+}
+
+///|
+fn show_shift_comparison() -> Unit raise {
+  let base = @dist.case_with_transformer()
+  let edge = base.edge_at(0)
+  println("=== 变压器相移对照（固定变比、漏阻抗与负荷）===")
+  for shift in [-30.0, 0.0, 30.0] {
+    let tx = edge.tx().with_phase_shift(shift)
+    let net = @dist.DistNet::make(
+      base.nodes(),
+      [@dist.DistEdge::make_tx(edge.from_id(), edge.to_id(), tx)],
+      base.root_id(),
+      base.v_root(),
+    )
+    let topo = @dist.build_topology(net).unwrap()
+    let result = match @dist.sweep(net, topo, 1.0e-12, 100) {
+      Ok(r) => r
+      Err(e) => fail(e.describe())
+    }
+    let voltage = result.voltages()[1]
+    let (_, positive, _) = @dist.sym_parts(voltage)
+    println(
+      "shift=" +
+      shift.to_string() +
+      " deg: V1=" +
+      fmt_cx(positive) +
+      ", VUF=" +
+      @dist.voltage_unbalance_percent(voltage).to_string() +
+      "%",
+    )
   }
 }
