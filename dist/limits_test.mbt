@@ -21,6 +21,24 @@ test "no violation when limits are wide" {
 }
 
 ///|
+test "checked voltage limits reject invalid ranges" {
+  let net = @dist.case_four_node()
+  let topo = @dist.build_topology(net).unwrap()
+  let r = @dist.sweep(net, topo, 1.0e-12, 100).unwrap()
+  let plain = @dist.voltage_violations(r, net, 0.5, 1.5)
+  let checked = @dist.voltage_violations_checked(r, net, 0.5, 1.5).unwrap()
+  assert_eq(checked.length(), plain.length())
+  assert_true(@dist.voltage_violations_checked(r, net, -0.1, 1.1) is Err(_))
+  assert_true(@dist.voltage_violations_checked(r, net, 1.1, 0.9) is Err(_))
+  assert_true(
+    @dist.voltage_violations_checked(r, net, 0.9, 0.0 / 0.0) is Err(_),
+  )
+  assert_true(
+    @dist.voltage_violations_checked(r, net, 0.9, 1.0 / 0.0) is Err(_),
+  )
+}
+
+///|
 test "narrow lower limit flags every phase below it" {
   let net = @dist.case_four_node()
   let topo = match @dist.build_topology(net) {

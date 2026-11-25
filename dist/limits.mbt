@@ -119,6 +119,27 @@ pub fn voltage_violations(
 }
 
 ///|
+/// Validate voltage limits before running the same comparison as
+/// `voltage_violations`. Limits must be finite, non-negative and ordered.
+pub fn voltage_violations_checked(
+  r : SweepOk,
+  net : DistNet,
+  vmin : Double,
+  vmax : Double,
+) -> Result[Array[Violation], String] {
+  if vmin.is_nan() || vmax.is_nan() || vmin.is_inf() || vmax.is_inf() {
+    return Err("voltage limits must be finite")
+  }
+  if vmin < 0.0 || vmax < 0.0 {
+    return Err("voltage limits must be non-negative")
+  }
+  if vmin > vmax {
+    return Err("minimum voltage must not exceed maximum voltage")
+  }
+  Ok(voltage_violations(r, net, vmin, vmax))
+}
+
+///|
 /// 三相电压幅值的全网最值：`Some((最小, 最大))`；没有任何可用电压
 /// （空数组，或存在 NaN 这种非有限值）时返回 `None`。
 ///
