@@ -4,6 +4,7 @@
 
 ## [Unreleased]
 
+- `examples/reject_demo` 增加上下界倒置的电压限值演示，让参数校验可由验收命令直接复现。
 - 新增 `voltage_violations_checked`，在生成越限清单前拒绝非有限、负数及上下界倒置的电压限值，避免错误阈值生成看似有效的报告。
 - 变压器相移复用公共 `symmetrical_components` 分解，不再维护第二份 Fortescue 公式，避免相移、VUF 与公开序分量接口在后续修改中产生口径漂移。
 - 前推回代与中性点电压计算共用拓扑校验，拒绝错序、重复节点及不一致的父子索引。

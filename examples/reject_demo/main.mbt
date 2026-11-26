@@ -147,6 +147,12 @@ fn main {
     Err(e) => e.describe()
   }
   println("  合法网络（3 节点链式） -> 通过：" + base)
+  let solved = @dist.sweep(good, topo, 1.0e-9, 100).unwrap()
+  match @dist.voltage_violations_checked(solved, good, 1.1, 0.9) {
+    Ok(_) =>
+      println("  电压下界 1.1 > 上界 0.9 -> 通过（预期之外）")
+    Err(e) => println("  电压下界 1.1 > 上界 0.9 -> 拒绝：" + e)
+  }
   show_sweep("tol = 0", @dist.sweep(good, topo, 0.0, 100))
   show_sweep("tol = +inf", @dist.sweep(good, topo, 1.0e309, 100))
   show_sweep("迭代上限 = 0", @dist.sweep(good, topo, 1.0e-9, 0))
