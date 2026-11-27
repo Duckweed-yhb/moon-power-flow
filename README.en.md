@@ -1,6 +1,6 @@
 # moon-power-flow
 
-> Local verification (2026-11-25): native, js, wasm-gc and wasm each pass 129/129 tests.
+> Local verification (2026-11-27): native, js, wasm-gc and wasm each pass 129/129 tests.
 
 [中文](./README.md) · English
 

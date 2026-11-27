@@ -191,7 +191,7 @@ python -m http.server 8765             # 仓库根目录执行，然后打开 ht
 
 ## 测试记录
 
-本地源码验证（2026-11-25）：Native、JS、Wasm、Wasm-GC 四个后端各通过 129/129 项测试，Native 严格编译检查通过。
+本地源码验证（2026-11-27）：Native、JS、Wasm、Wasm-GC 四个后端各通过 129/129 项测试，Native 严格编译检查通过。
 
 ## 许可证
 
